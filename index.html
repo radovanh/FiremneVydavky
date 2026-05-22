@@ -165,7 +165,8 @@ tr.paid-row td:first-child{opacity:1;}
   thead th{padding:6px 7px;font-size:0.65rem;}
   tbody td{padding:6px 7px;}
   /* Hide Del column (index 6) and full VAT column (index 5) on mobile — shown in edit */
-  .exp-col-vat,.exp-col-div,.exp-col-full,.exp-col-typ{display:none;}
+  .exp-col-vat,.exp-col-div,.exp-col-full,.exp-col-typ,.rpt-col-hide{display:none;}
+  #reportSummary{grid-template-columns:1fr 1fr!important;gap:8px;}
   /* Cards */
   .card-header{padding:10px 12px;}
   .card-body{padding:12px;}
@@ -186,7 +187,7 @@ tr.paid-row td:first-child{opacity:1;}
   .user-screen-box h1{font-size:1.6rem;}
   .user-grid{grid-template-columns:repeat(2,1fr);}
   /* Report summary cards: stack */
-  #reportBody>div:first-child{grid-template-columns:1fr!important;}
+
   /* Hamburger menu button */
   .mob-menu-btn{display:flex;align-items:center;justify-content:center;background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--text2);padding:2px 6px;border-radius:6px;margin-right:6px;}
   /* Drawer overlay */
@@ -211,8 +212,7 @@ tr.paid-row td:first-child{opacity:1;}
   .mob-fab-backdrop{display:none;position:fixed;inset:0;z-index:98;background:rgba(0,0,0,0.18);}
   .mob-fab-backdrop.open{display:block;}
   body.page-report .mob-fab-group,body.page-settings .mob-fab-group{display:none!important;}
-  /* Report: stack summary cards vertically */
-  #reportSummary{grid-template-columns:1fr!important;}
+  /* Report summary: 2-col on mobile handled above */
   /* Report month nav */
   #page-report>div:first-child{flex-direction:row;flex-wrap:wrap;gap:8px;}
   /* Month nav buttons slightly bigger tap targets */
@@ -1111,38 +1111,7 @@ function renderReport(){
   const paid=rows.filter(e=>e.paid).reduce((s,e)=>s+e.topay,0);
   const unpaid=rows.filter(e=>!e.paid).reduce((s,e)=>s+e.topay,0);
   $('reportBody').innerHTML=
-    '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;" id="reportSummary">'
-    +'<div style="background:var(--surface2);border-radius:8px;padding:12px 14px;border-left:4px solid var(--accent);">'
-    +'<div style="font-size:0.71rem;color:var(--text2);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;">Celkom k úhrade</div>'
-    +'<div style="font-size:1.4rem;font-weight:700;">'+fmtEur2(total)+' €</div>'
-    +'<div style="font-size:0.73rem;color:var(--text3);">'+rows.length+' výdavkov</div></div>'
-    +'<div style="background:var(--surface2);border-radius:8px;padding:12px 14px;border-left:4px solid #6bcb77;">'
-    +'<div style="font-size:0.71rem;color:var(--text2);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;">Zaplatené</div>'
-    +'<div style="font-size:1.4rem;font-weight:700;color:var(--accent);">'+fmtEur2(paid)+' €</div>'
-    +'<div style="font-size:0.73rem;color:var(--text3);">'+rows.filter(e=>e.paid).length+' položiek</div></div>'
-    +'<div style="background:var(--surface2);border-radius:8px;padding:12px 14px;border-left:4px solid var(--warn);">'
-    +'<div style="font-size:0.71rem;color:var(--text2);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;">Nezaplatené</div>'
-    +'<div style="font-size:1.4rem;font-weight:700;color:var(--warn);">'+fmtEur2(unpaid)+' €</div>'
-    +'<div style="font-size:0.73rem;color:var(--text3);">'+rows.filter(e=>!e.paid).length+' položiek</div></div></div>'
-    +'<div class="table-wrap"><table>'
-    +'<thead><tr><th>Dátum</th><th>Popis</th><th>Typ</th><th>Plná suma</th><th>DPH</th><th>Del.</th><th>K úhrade</th><th>Stav</th></tr></thead>'
-    +'<tbody>'
-    +rows.map(e=>{
-      const typeName=e.typeId?getTypes().find(x=>x.id===e.typeId)?.name||'—':'—';
-      const divLabel=e.divisor===0?'plná':e.divisor===1?'1/1':e.divisor===2?'1/2':'1/4';
-      return '<tr>'
-        +'<td>'+fmtDate(e.date)+'</td>'
-        +'<td>'+e.desc+'</td>'
-        +'<td>'+typeName+'</td>'
-        +'<td>'+fmtEur2(e.amount)+' €</td>'
-        +'<td>'+fmtEur2(e.vat)+' €</td>'
-        +'<td style="font-size:0.76rem;color:var(--text3);">'+divLabel+'</td>'
-        +'<td style="font-weight:600;">'+fmtEur2(e.topay)+' €</td>'
-        +'<td><span class="badge '+(e.paid?'badge-ok':'badge-warn')+'">'+(e.paid?'Zaplatené':'Nezaplatené')+'</span></td>'
-        +'</tr>';
-    }).join('')
-    +(rows.length?'<tr class="report-total"><td colspan="6" style="text-align:right;font-weight:700;">SPOLU</td><td style="font-weight:700;">'+fmtEur2(total)+' €</td><td></td></tr>':'<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:20px;">Žiadne výdavky</td></tr>')
-    +'</tbody></table></div>';
+    '<div id="reportSummary" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;">'    +'<div style="background:var(--surface2);border-radius:8px;padding:12px 14px;border-left:4px solid var(--accent);">'    +'<div style="font-size:0.71rem;color:var(--text2);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;">Celkom</div>'    +'<div style="font-size:1.3rem;font-weight:700;">'+fmtEur2(total)+' €</div>'    +'<div style="font-size:0.71rem;color:var(--text3);">'+rows.length+' výdavkov</div></div>'    +'<div style="background:var(--surface2);border-radius:8px;padding:12px 14px;border-left:4px solid #6bcb77;">'    +'<div style="font-size:0.71rem;color:var(--text2);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;">Zaplatené</div>'    +'<div style="font-size:1.3rem;font-weight:700;color:var(--accent);">'+fmtEur2(paid)+' €</div>'    +'<div style="font-size:0.71rem;color:var(--text3);">'+rows.filter(e=>e.paid).length+' pol.</div></div>'    +'<div style="background:var(--surface2);border-radius:8px;padding:12px 14px;border-left:4px solid var(--warn);">'    +'<div style="font-size:0.71rem;color:var(--text2);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;">Nezaplatené</div>'    +'<div style="font-size:1.3rem;font-weight:700;color:var(--warn);">'+fmtEur2(unpaid)+' €</div>'    +'<div style="font-size:0.71rem;color:var(--text3);">'+rows.filter(e=>!e.paid).length+' pol.</div></div></div>'    +'<div class="table-wrap"><table>'    +'<thead><tr>'    +'<th>Dátum</th><th>Popis</th>'    +'<th class="rpt-col-hide">Typ</th>'    +'<th class="rpt-col-hide">Plná suma</th>'    +'<th class="rpt-col-hide">DPH</th>'    +'<th class="rpt-col-hide">Del.</th>'    +'<th>K úhrade</th><th>Stav</th>'    +'</tr></thead><tbody>'    +rows.map(e=>{      const typeName=e.typeId?getTypes().find(x=>x.id===e.typeId)?.name||'—':'—';      const divLabel=e.divisor===0?'plná':e.divisor===1?'1/1':e.divisor===2?'1/2':'1/4';      return '<tr>'        +'<td style="white-space:nowrap">'+fmtDate(e.date)+'</td>'        +'<td>'+e.desc+'</td>'        +'<td class="rpt-col-hide">'+typeName+'</td>'        +'<td class="rpt-col-hide">'+fmtEur2(e.amount)+' €</td>'        +'<td class="rpt-col-hide">'+fmtEur2(e.vat)+' €</td>'        +'<td class="rpt-col-hide" style="font-size:0.76rem;color:var(--text3);">'+divLabel+'</td>'        +'<td style="font-weight:600;white-space:nowrap">'+fmtEur2(e.topay)+' €</td>'        +'<td><span class="badge '+(e.paid?'badge-ok':'badge-warn')+'">'+(e.paid?'Zap.':'Nezap.')+'</span></td>'        +'</tr>';    }).join('')    +(rows.length?'<tr class="report-total"><td colspan="2" style="text-align:right;font-weight:700;">SPOLU</td><td class="rpt-col-hide"></td><td class="rpt-col-hide"></td><td class="rpt-col-hide"></td><td class="rpt-col-hide"></td><td style="font-weight:700;">'+fmtEur2(total)+' €</td><td></td></tr>':'<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:20px;">Žiadne výdavky</td></tr>')    +'</tbody></table></div>';
 }
 
 // ── RENDER SETTINGS ───────────────────────────────────────────────────────────
