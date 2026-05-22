@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Výdavky</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%232c5f4a'/><text y='46' x='8' font-size='42' font-family='serif'>🧾</text></svg>">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap');
+:root{
+  --bg:#f4f1ec;--surface:#faf8f5;--surface2:#eeeae3;--border:#ddd9d0;
+  --accent:#2c5f4a;--accent2:#d4a847;--accent3:#c0392b;
+  --text:#1a1a18;--text2:#5a584f;--text3:#8a8880;--warn:#e67e22;
+  --radius:10px;--shadow:0 2px 12px rgba(0,0,0,0.07);--shadow2:0 4px 24px rgba(0,0,0,0.11);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+.app-shell{display:flex;min-height:100vh;}
+#appMain{display:none;}
+#appMain.visible{display:flex;width:100%;min-height:100vh;}
+.page{display:none;}.page.active{display:block;}
+/* SIDEBAR */
+.sidebar{width:228px;background:var(--accent);color:#fff;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;}
+.sidebar-logo{padding:22px 19px 15px;border-bottom:1px solid rgba(255,255,255,0.15);}
+.sidebar-logo h1{font-family:'DM Serif Display',serif;font-size:1.22rem;color:#fff;}
+.sidebar-logo span{font-size:0.71rem;color:rgba(255,255,255,0.5);display:block;margin-top:2px;}
+.user-chip{margin:10px 13px;background:rgba(255,255,255,0.11);border-radius:8px;padding:8px 11px;cursor:pointer;display:flex;align-items:center;gap:8px;font-size:0.81rem;color:rgba(255,255,255,0.88);border:1px solid rgba(255,255,255,0.14);transition:background 0.13s;}
+.user-chip:hover{background:rgba(255,255,255,0.2);}
+.user-chip .av{width:25px;height:25px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.73rem;font-weight:700;color:#fff;flex-shrink:0;}
+.user-chip .uname{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.user-chip .caret{margin-left:auto;opacity:0.55;font-size:0.68rem;}
+.sidebar-nav{padding:9px 0;flex:1;overflow-y:auto;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 19px;cursor:pointer;font-size:0.865rem;color:rgba(255,255,255,0.7);border-left:3px solid transparent;transition:all 0.13s;}
+.nav-item:hover{background:rgba(255,255,255,0.08);color:#fff;}
+.nav-item.active{background:rgba(255,255,255,0.12);color:#fff;font-weight:600;border-left-color:var(--accent2);}
+.nav-item .icon{font-size:1rem;width:19px;text-align:center;}
+.sidebar-footer{padding:11px 15px;border-top:1px solid rgba(255,255,255,0.12);font-size:0.71rem;color:rgba(255,255,255,0.42);display:flex;flex-direction:column;align-items:flex-start;gap:4px;}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:#6bcb77;flex-shrink:0;}
+.sync-dot.warn{background:var(--warn);}.sync-dot.err{background:var(--accent3);}
+.main{margin-left:228px;flex:1;}
+/* TOPBAR */
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;}
+.topbar h2{font-size:1.02rem;font-weight:600;}
+.topbar-actions{display:flex;gap:8px;}
+.content{padding:24px 28px;}
+/* BUTTONS */
+button{font-family:'DM Sans',sans-serif;cursor:pointer;}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:0.84rem;font-weight:500;border:none;transition:all 0.15s;cursor:pointer;}
+.btn-primary{background:var(--accent);color:#fff;}.btn-primary:hover{background:#235040;}
+.btn-secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border);}.btn-secondary:hover{background:#e5e1da;}
+.btn-danger{background:var(--accent3);color:#fff;}.btn-danger:hover{background:#a93226;}
+.btn-warn{background:var(--warn);color:#fff;}.btn-warn:hover{background:#ca6f1e;}
+.btn-sm{padding:5px 11px;font-size:0.78rem;}
+.btn-icon{padding:5px 7px;font-size:0.85rem;background:none;border:1px solid var(--border);border-radius:7px;color:var(--text2);}
+.btn-icon:hover{background:var(--surface2);}
+/* STATS */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;margin-bottom:20px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:15px 17px;box-shadow:var(--shadow);}
+.stat-label{font-size:0.71rem;color:var(--text2);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;}
+.stat-value{font-size:1.55rem;font-weight:600;line-height:1;}
+.stat-sub{font-size:0.73rem;color:var(--text3);margin-top:3px;}
+.stat-card.ag{border-left:4px solid var(--accent);}
+.stat-card.au{border-left:4px solid var(--accent2);}
+.stat-card.ar{border-left:4px solid var(--accent3);}
+.stat-card.ab{border-left:4px solid #4a7fc0;}
+/* CARD / TABLE */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);}
+.card-header{padding:13px 17px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+.card-header h3{font-size:0.88rem;font-weight:600;}
+.card-body{padding:17px;}
+.table-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:0.845rem;}
+thead th{background:var(--surface2);padding:8px 11px;text-align:left;font-size:0.72rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.03em;border-bottom:1px solid var(--border);white-space:nowrap;}
+tbody tr{border-bottom:1px solid var(--border);}
+tbody tr:hover{background:rgba(44,95,74,0.03);}
+tbody td{padding:8px 11px;vertical-align:middle;}
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:0.72rem;font-weight:600;}
+.badge-ok{background:#e8f5e9;color:#2e7d32;}
+.badge-warn{background:#fff8e1;color:#f57f17;}
+.badge-info{background:#e3f2fd;color:#1565c0;}
+/* MODALS */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:1000;display:none;align-items:center;justify-content:center;padding:20px;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border-radius:14px;box-shadow:var(--shadow2);width:100%;max-width:520px;max-height:90vh;overflow-y:auto;}
+.modal-header{padding:18px 22px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.modal-header h3{font-size:1rem;font-weight:600;}
+.modal-close{background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--text3);line-height:1;padding:2px 6px;border-radius:5px;}
+.modal-close:hover{background:var(--surface2);}
+.modal-body{padding:20px 22px;}
+.modal-footer{padding:14px 22px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:9px;}
+/* FORMS */
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin-bottom:13px;}
+.form-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:13px;margin-bottom:13px;}
+.form-row-1{display:grid;grid-template-columns:1fr;gap:13px;margin-bottom:13px;}
+.form-group{display:flex;flex-direction:column;gap:5px;}
+.form-group label{font-size:0.78rem;font-weight:600;color:var(--text2);}
+.form-group input,.form-group select,.form-group textarea{padding:8px 11px;border:1px solid var(--border);border-radius:7px;font-family:'DM Sans',sans-serif;font-size:0.87rem;background:var(--surface);color:var(--text);outline:none;transition:border-color 0.15s;}
+.form-group input:focus,.form-group select:focus{border-color:var(--accent);}
+.form-note{font-size:0.77rem;color:var(--text3);margin-top:2px;}
+/* SETTINGS */
+.stg-tabs{display:flex;gap:4px;background:var(--surface2);border-radius:8px;padding:4px;margin-bottom:16px;flex-wrap:wrap;}
+.stg-tab{padding:8px 14px;border-radius:6px;font-size:0.81rem;font-weight:500;background:transparent;border:none;cursor:pointer;color:var(--text2);transition:all 0.13s;}
+.stg-tab.active{background:var(--surface);box-shadow:0 1px 4px rgba(0,0,0,0.08);font-weight:700;color:var(--text);}
+.stg-panel{display:none;max-height:500px;overflow-y:auto;}
+.stg-panel.active{display:block;}
+.stg-section{margin-bottom:18px;}
+.stg-section h4{font-size:0.83rem;font-weight:700;margin-bottom:10px;color:var(--text2);}
+/* MONTH NAV */
+.month-nav{display:flex;align-items:center;gap:10px;}
+.month-nav button{background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:5px 10px;cursor:pointer;font-size:1rem;}
+.month-nav button:hover{background:var(--border);}
+#monthLabel{font-weight:600;font-size:0.95rem;min-width:130px;text-align:center;}
+/* USER SCREEN */
+#userScreen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);padding:20px;}
+.user-screen-box{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:38px 42px;box-shadow:var(--shadow2);width:100%;max-width:500px;text-align:center;}
+.user-screen-box h1{font-family:'DM Serif Display',serif;font-size:2.1rem;color:var(--accent);margin-bottom:4px;}
+.user-screen-box p{color:var(--text2);font-size:0.9rem;margin-bottom:26px;}
+.user-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:11px;margin-bottom:18px;}
+.user-btn{background:var(--surface2);border:2px solid var(--border);border-radius:12px;padding:15px 8px;cursor:pointer;transition:all 0.15s;display:flex;flex-direction:column;align-items:center;gap:7px;}
+.user-btn:hover{border-color:var(--accent);background:#eaf2ee;}
+.u-avatar{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:700;color:#fff;}
+.u-name{font-size:0.81rem;font-weight:600;color:var(--text);}
+.add-user-btn{background:none;border:2px dashed var(--border);border-radius:12px;padding:15px 8px;cursor:pointer;color:var(--text3);font-size:0.8rem;display:flex;flex-direction:column;align-items:center;gap:5px;transition:all 0.15s;}
+.add-user-btn:hover{border-color:var(--accent);color:var(--accent);}
+/* TOAST */
+#toast{position:fixed;bottom:22px;right:22px;background:var(--text);color:#fff;padding:9px 16px;border-radius:9px;font-size:0.84rem;box-shadow:var(--shadow2);z-index:9999;transform:translateY(60px);opacity:0;transition:all 0.25s;pointer-events:none;}
+#toast.show{transform:translateY(0);opacity:1;}
+#toast.tok{background:var(--accent);}#toast.terr{background:var(--accent3);}
+.spinner{display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.6s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* PAID ROW */
+tr.paid-row td{opacity:0.5;}
+tr.paid-row td:first-child{opacity:1;}
+.paid-check{width:17px;height:17px;cursor:pointer;accent-color:var(--accent);}
+/* REPORT TOTAL ROW */
+.report-total{font-weight:700;background:var(--surface2)!important;}
+/* MOBILE */
+.mob-fab-group,.mob-bottom-nav,.mob-menu-btn{display:none;}
+#mobOverlay,#mobDrawer{display:none;}
+@media(max-width:680px){
+  .sidebar{display:none!important;}
+  .main{margin-left:0!important;}
+  .topbar{padding:10px 14px;}
+  .topbar h2{font-size:0.95rem;}
+  .mob-menu-btn{display:flex;align-items:center;justify-content:center;background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--text2);padding:2px 6px;border-radius:6px;margin-right:6px;}
+  #mobOverlay{display:block;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:150;opacity:0;pointer-events:none;transition:opacity 0.22s;}
+  #mobOverlay.open{opacity:1;pointer-events:auto;}
+  #mobDrawer{display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;width:240px;background:var(--accent);z-index:160;transform:translateX(-100%);transition:transform 0.22s ease;box-shadow:4px 0 20px rgba(0,0,0,0.25);}
+  #mobDrawer.open{transform:translateX(0);}
+  .mob-nav-item{display:flex;align-items:center;gap:10px;padding:11px 18px;cursor:pointer;font-size:0.9rem;color:rgba(255,255,255,0.78);border-left:3px solid transparent;transition:all 0.12s;}
+  .mob-nav-item.active{background:rgba(255,255,255,0.13);color:#fff;font-weight:600;border-left-color:var(--accent2);}
+  .content{padding:14px 14px 80px;}
+  .stats-grid{grid-template-columns:1fr 1fr!important;gap:10px;}
+  .stat-value{font-size:1.3rem;}
+  .form-row,.form-row-3{grid-template-columns:1fr!important;}
+  .modal-overlay{padding:0;align-items:flex-end;}
+  .modal{max-width:100%!important;max-height:95vh!important;border-radius:18px 18px 0 0!important;}
+  .stg-tabs{overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+  .stg-tab{white-space:nowrap;flex-shrink:0;font-size:0.76rem;padding:8px 10px;}
+  .user-grid{grid-template-columns:repeat(2,1fr);}
+  .mob-bottom-nav{display:flex;position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);z-index:100;box-shadow:0 -2px 12px rgba(0,0,0,0.08);padding-bottom:env(safe-area-inset-bottom,0);}
+  .mob-bn-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:8px 4px;cursor:pointer;font-size:0.65rem;color:var(--text3);}
+  .mob-bn-item span:first-child{font-size:1.25rem;line-height:1;}
+  .mob-bn-item.active,.mob-bn-item:hover{color:var(--accent);}
+  .mob-fab-group{display:block;position:fixed;bottom:70px;right:18px;z-index:99;}
+  .mob-fab{display:flex;align-items:center;justify-content:center;width:52px;height:52px;border-radius:50%;background:var(--accent);color:#fff;font-size:1.6rem;font-weight:300;border:none;cursor:pointer;box-shadow:0 4px 18px rgba(44,95,74,0.45);transition:transform 0.15s;position:relative;z-index:1;}
+  .mob-fab.open{transform:rotate(45deg);background:#235040;}
+  .mob-fab-menu{position:absolute;bottom:62px;right:0;display:flex;flex-direction:column;gap:10px;align-items:flex-end;opacity:0;pointer-events:none;transform:translateY(10px);transition:opacity 0.18s ease,transform 0.18s ease;}
+  .mob-fab-menu.open{opacity:1;pointer-events:auto;transform:translateY(0);}
+  .mob-fab-action{display:flex;align-items:center;gap:10px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:25px;padding:9px 16px 9px 13px;font-size:0.9rem;font-family:inherit;font-weight:500;cursor:pointer;white-space:nowrap;box-shadow:0 2px 10px rgba(0,0,0,0.12);}
+  .mob-fab-backdrop{display:none;position:fixed;inset:0;z-index:98;background:rgba(0,0,0,0.18);}
+  .mob-fab-backdrop.open{display:block;}
+  body.page-report .mob-fab-group,body.page-settings .mob-fab-group{display:none!important;}
+}
+@media print{
+  .sidebar,.topbar,.mob-bottom-nav,.mob-fab-group,#toast,.card-header .btn,.card-header button{display:none!important;}
+  .main{margin-left:0!important;}
+  .content{padding:0!important;}
+  .page{display:none!important;}
+  #page-report{display:block!important;}
+}
+</style>
+</head>
+<body>
+
+<div id="userScreen">
+  <div class="user-screen-box">
+    <h1>🧾 Výdavky</h1>
+    <p>Evidencia firemných výdavkov</p>
+    <div class="user-grid" id="userGrid"></div>
+  </div>
+</div>
+
+<div id="appMain">
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <h1>🧾 Výdavky</h1>
+        <span>Firemné výdavky</span>
+      </div>
+      <div class="user-chip" onclick="switchUser()">
+        <div class="av" id="sbAv">?</div>
+        <span class="uname" id="sbName">—</span>
+        <span class="caret">⇄</span>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-item active" onclick="showPage('dashboard')" data-page="dashboard"><span class="icon">📊</span> Prehľad</div>
+        <div class="nav-item" onclick="showPage('expenses')" data-page="expenses"><span class="icon">🧾</span> Výdavky</div>
+        <div class="nav-item" onclick="showPage('report')" data-page="report"><span class="icon">📋</span> Vyúčtovanie</div>
+        <div class="nav-item" onclick="showPage('settings')" data-page="settings"><span class="icon">⚙️</span> Nastavenia</div>
+      </nav>
+      <div class="sidebar-footer" style="flex-direction:column;align-items:flex-start;gap:4px">
+        <div style="display:flex;align-items:center;gap:5px;width:100%"><div class="sync-dot" id="syncDot"></div><span id="syncLabel">—</span></div>
+        <div style="font-size:0.62rem;color:rgba(255,255,255,0.25);letter-spacing:0.03em">v0.1.0</div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div style="display:flex;align-items:center;gap:8px">
+          <button class="mob-menu-btn" onclick="toggleMobMenu()">☰</button>
+          <h2 id="pageTitle">Prehľad</h2>
+        </div>
+        <div class="topbar-actions" id="topAct"></div>
+      </div>
+      <div class="content">
+
+        <!-- DASHBOARD -->
+        <div class="page active" id="page-dashboard">
+          <div class="stats-grid" id="dashStats"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;" id="dashCards"></div>
+        </div>
+
+        <!-- EXPENSES -->
+        <div class="page" id="page-expenses">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+            <div class="month-nav">
+              <button onclick="changeMonth(-1)">&#8249;</button>
+              <span id="monthLabel">—</span>
+              <button onclick="changeMonth(1)">&#8250;</button>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="btn btn-secondary btn-sm" onclick="markAllPaid()">&#10003; Označiť mesiac zaplatený</button>
+              <button class="btn btn-primary btn-sm" onclick="openAddExpense()">+ Nový výdavok</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <h3 id="expTableTitle">Výdavky</h3>
+              <span id="expTableTotal" style="font-size:0.82rem;color:var(--text2);"></span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th style="width:32px"></th>
+                    <th>Dátum</th>
+                    <th>Popis</th>
+                    <th>Typ</th>
+                    <th>Plná suma</th>
+                    <th>DPH</th>
+                    <th>Del.</th>
+                    <th>K úhrade</th>
+                    <th style="width:64px">Akcia</th>
+                  </tr>
+                </thead>
+                <tbody id="expTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- REPORT -->
+        <div class="page" id="page-report">
+          <div style="margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <div class="month-nav">
+              <button onclick="changeReportMonth(-1)">&#8249;</button>
+              <span id="reportMonthLabel">—</span>
+              <button onclick="changeReportMonth(1)">&#8250;</button>
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="window.print()">🖨 Tlačiť</button>
+          </div>
+          <div class="card" id="reportCard">
+            <div class="card-header"><h3 id="reportTitle">Vyúčtovanie</h3></div>
+            <div class="card-body" id="reportBody"></div>
+          </div>
+        </div>
+
+        <!-- SETTINGS -->
+        <div class="page" id="page-settings">
+          <div class="card">
+            <div class="card-body">
+              <div class="stg-tabs">
+                <button class="stg-tab active" id="stgtab-data" onclick="showSettingsTab('data')">📋 Typy výdavkov</button>
+                <button class="stg-tab" id="stgtab-storage" onclick="showSettingsTab('storage')">💾 Ukladanie</button>
+                <button class="stg-tab" id="stgtab-io" onclick="showSettingsTab('io')">📦 Export/Import</button>
+              </div>
+              <div class="stg-panel active" id="stgpanel-data">
+                <div class="stg-section">
+                  <h4>Predefinované typy výdavkov</h4>
+                  <p style="font-size:0.82rem;color:var(--text3);margin-bottom:12px;">Deliteľ určuje, aká časť DPH sa hradí. Deliteľ 2 = polovica DPH (nafta, benzín). Deliteľ 0 = plná suma bez DPH.</p>
+                  <div id="typesList" style="margin-bottom:12px;"></div>
+                  <button class="btn btn-secondary btn-sm" onclick="openAddType()">+ Pridať typ</button>
+                </div>
+              </div>
+              <div class="stg-panel" id="stgpanel-storage">
+                <div class="stg-section">
+                  <div style="background:var(--surface2);border-radius:8px;padding:5px;display:flex;gap:4px;margin-bottom:14px;">
+                    <button id="stab-gh" onclick="switchStab('gh')" style="flex:1;padding:7px;border:none;border-radius:5px;font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:700;background:var(--surface);box-shadow:0 1px 4px rgba(0,0,0,0.08);">GitHub</button>
+                    <button id="stab-gd" onclick="switchStab('gd')" style="flex:1;padding:7px;border:none;border-radius:5px;font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:500;background:transparent;">Google Drive</button>
+                    <button id="stab-ls" onclick="switchStab('ls')" style="flex:1;padding:7px;border:none;border-radius:5px;font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:500;background:transparent;">localStorage</button>
+                  </div>
+                  <div id="spanel-gh">
+                    <div class="form-row">
+                      <div class="form-group"><label>GitHub Owner</label><input id="gh_owner" placeholder="username"></div>
+                      <div class="form-group"><label>Repository</label><input id="gh_repo" placeholder="my-repo"></div>
+                    </div>
+                    <div class="form-row">
+                      <div class="form-group"><label>Branch</label><input id="gh_branch" placeholder="main"></div>
+                      <div class="form-group"><label>Cesta k súboru</label><input id="gh_path" placeholder="vydavky.json"></div>
+                    </div>
+                    <div class="form-row-1">
+                      <div class="form-group"><label>Personal Access Token</label><input id="gh_token" type="password" placeholder="ghp_..."></div>
+                    </div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                      <button class="btn btn-primary btn-sm" onclick="saveGHConfig()">Uložiť</button>
+                      <button class="btn btn-secondary btn-sm" id="ghTest" onclick="testGH()">Otestovať</button>
+                      <button class="btn btn-danger btn-sm" onclick="clearGHConfig()">Odstrániť</button>
+                    </div>
+                  </div>
+                  <div id="spanel-gd" style="display:none;">
+                    <div class="form-row-1">
+                      <div class="form-group"><label>OAuth Client ID</label><input id="gd_clientid" placeholder="....apps.googleusercontent.com"></div>
+                    </div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:4px;">
+                      <button class="btn btn-secondary btn-sm" onclick="saveGDConfig()">Uložiť Client ID</button>
+                      <button class="btn btn-primary btn-sm" onclick="gdSignIn()">Prihlásiť Google Drive</button>
+                      <button class="btn btn-danger btn-sm" onclick="gdSignOut()">Odhlásiť</button>
+                      <span id="gdStatus" style="font-size:0.82rem;color:var(--text2);"></span>
+                    </div>
+                    <div id="gdUserInfo" style="display:none;margin-top:10px;align-items:center;gap:8px;">
+                      <img id="gdAvatar" width="28" height="28" style="border-radius:50%">
+                      <div><div id="gdUserName" style="font-size:0.85rem;font-weight:600;"></div><div id="gdUserEmail" style="font-size:0.75rem;color:var(--text3);"></div></div>
+                    </div>
+                  </div>
+                  <div id="spanel-ls" style="display:none;">
+                    <p style="font-size:0.85rem;color:var(--text2);">Dáta sú uložené len v prehliadači (localStorage). Nie sú synchronizované.</p>
+                    <button class="btn btn-warn btn-sm" style="margin-top:10px;" onclick="forceUseLS()">Použiť len localStorage</button>
+                  </div>
+                </div>
+              </div>
+              <div class="stg-panel" id="stgpanel-io">
+                <div class="stg-section">
+                  <h4>Export / Import dát</h4>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button class="btn btn-secondary btn-sm" onclick="exportData()">&#8595; Export JSON</button>
+                    <button class="btn btn-secondary btn-sm" onclick="document.getElementById('importFile').click()">&#8593; Import JSON</button>
+                    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- MOBILE -->
+  <div id="mobOverlay" onclick="closeMobMenu()"></div>
+  <div id="mobDrawer">
+    <div style="padding:18px 16px 12px;border-bottom:1px solid rgba(255,255,255,0.12);">
+      <div style="font-family:'DM Serif Display',serif;font-size:1.1rem;color:#fff;margin-bottom:8px;">🧾 Výdavky</div>
+      <div style="display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="switchUser();closeMobMenu();">
+        <div class="av" id="sbAv2" style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.85rem;font-weight:700;color:#fff;background:var(--accent2);">?</div>
+        <span id="sbName2" style="font-size:0.85rem;color:rgba(255,255,255,0.88);font-weight:600;">—</span>
+      </div>
+    </div>
+    <div style="padding:8px 0;flex:1;">
+      <div class="mob-nav-item active" data-page="dashboard" onclick="showPage('dashboard');closeMobMenu()"><span>📊</span> Prehľad</div>
+      <div class="mob-nav-item" data-page="expenses" onclick="showPage('expenses');closeMobMenu()"><span>🧾</span> Výdavky</div>
+      <div class="mob-nav-item" data-page="report" onclick="showPage('report');closeMobMenu()"><span>📋</span> Vyúčtovanie</div>
+      <div class="mob-nav-item" data-page="settings" onclick="showPage('settings');closeMobMenu()"><span>⚙️</span> Nastavenia</div>
+    </div>
+    <div style="padding:10px 14px;border-top:1px solid rgba(255,255,255,0.12);display:flex;align-items:center;gap:6px;">
+      <div class="sync-dot" id="syncDot2"></div><span id="syncLabel2" style="font-size:0.72rem;color:rgba(255,255,255,0.5);">—</span>
+    </div>
+  </div>
+  <nav class="mob-bottom-nav">
+    <div class="mob-bn-item active" data-page="dashboard" onclick="showPage('dashboard')"><span>📊</span><span>Prehľad</span></div>
+    <div class="mob-bn-item" data-page="expenses" onclick="showPage('expenses')"><span>🧾</span><span>Výdavky</span></div>
+    <div class="mob-bn-item" data-page="report" onclick="showPage('report')"><span>📋</span><span>Správa</span></div>
+    <div class="mob-bn-item" data-page="settings" onclick="showPage('settings')"><span>⚙️</span><span>Nastav.</span></div>
+  </nav>
+  <div class="mob-fab-group">
+    <div class="mob-fab-backdrop" id="mobFabBackdrop" onclick="closeMobFab()"></div>
+    <div class="mob-fab-menu" id="mobFabMenu">
+      <button class="mob-fab-action" onclick="openAddExpense();closeMobFab()">🧾 Nový výdavok</button>
+    </div>
+    <button class="mob-fab" id="mobFabMain" onclick="toggleMobFab()">+</button>
+  </div>
+</div>
+
+<!-- ADD/EDIT EXPENSE MODAL -->
+<div class="modal-overlay" id="expModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="expModalTitle">Nový výdavok</h3>
+      <button class="modal-close" onclick="closeModal('expModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Dátum *</label>
+          <input type="date" id="exp_date">
+        </div>
+        <div class="form-group">
+          <label>Typ výdavku</label>
+          <select id="exp_type" onchange="onTypeChange()">
+            <option value="">— vybrať —</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row-1">
+        <div class="form-group">
+          <label>Popis *</label>
+          <input type="text" id="exp_desc" placeholder="napr. nafta, prezutie, monitor…">
+        </div>
+      </div>
+      <div class="form-row-3">
+        <div class="form-group">
+          <label>Plná suma (€) *</label>
+          <input type="number" id="exp_amount" step="0.01" min="0" oninput="recalcExpense()" placeholder="0.00">
+        </div>
+        <div class="form-group">
+          <label>DPH sadzba (%)</label>
+          <select id="exp_vatrate" onchange="recalcExpense()">
+            <option value="20">20%</option>
+            <option value="23">23%</option>
+            <option value="10">10%</option>
+            <option value="0">0%</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Vypočítaná DPH (€)</label>
+          <input type="number" id="exp_vat" step="0.0001" min="0" oninput="calcToPay()" placeholder="0.0000">
+        </div>
+      </div>
+      <div class="form-row-3">
+        <div class="form-group">
+          <label>Deliteľ DPH</label>
+          <select id="exp_divisor" onchange="calcToPay()">
+            <option value="1">1 (plná DPH)</option>
+            <option value="2">2 (polovica DPH)</option>
+            <option value="4">4 (štvrtina DPH)</option>
+            <option value="0">0 (plná suma)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>K úhrade (€)</label>
+          <input type="number" id="exp_topay" step="0.0001" min="0" placeholder="0.0000" style="font-weight:700;color:var(--accent);">
+          <span class="form-note">Vypočítané automaticky</span>
+        </div>
+        <div class="form-group">
+          <label>Zaplatené</label>
+          <select id="exp_paid">
+            <option value="0">Nie</option>
+            <option value="1">Áno</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('expModal')">Zrušiť</button>
+      <button class="btn btn-primary" onclick="saveExpense()">Uložiť</button>
+    </div>
+  </div>
+</div>
+
+<!-- TYPE MODAL -->
+<div class="modal-overlay" id="typeModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="typeModalTitle">Typ výdavku</h3>
+      <button class="modal-close" onclick="closeModal('typeModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Názov *</label>
+          <input type="text" id="typ_name" placeholder="napr. Nafta, Benzín, Prezutie…">
+        </div>
+        <div class="form-group">
+          <label>Deliteľ DPH *</label>
+          <select id="typ_divisor">
+            <option value="1">1 — plná DPH</option>
+            <option value="2">2 — polovica DPH</option>
+            <option value="4">4 — štvrtina DPH</option>
+            <option value="0">0 — plná suma</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row-1">
+        <div class="form-group">
+          <label>Popis (voliteľné)</label>
+          <input type="text" id="typ_desc" placeholder="Krátky popis…">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('typeModal')">Zrušiť</button>
+      <button class="btn btn-primary" onclick="saveType()">Uložiť typ</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD USER MODAL -->
+<div class="modal-overlay" id="addUserModal">
+  <div class="modal" style="max-width:360px;">
+    <div class="modal-header"><h3>Nový používateľ</h3><button class="modal-close" onclick="closeModal('addUserModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-row-1"><div class="form-group"><label>Meno *</label><input type="text" id="nu_name" placeholder="Meno"></div></div>
+      <div class="form-group"><label>Farba</label><div id="colorPicker" style="display:flex;gap:7px;flex-wrap:wrap;margin-top:4px;"></div></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('addUserModal')">Zrušiť</button>
+      <button class="btn btn-primary" onclick="createUser()">Vytvoriť</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const LS_KEY  = 'vydavky_v1';
+const LS_GH   = 'vydavky_gh';
+const LS_GD   = 'vydavky_gd';
+const LS_USER = 'vydavky_uid';
+const GD_FILENAME = 'vydavky_data.json';
+const IS_LOCAL = location.hostname==='localhost'||location.hostname==='127.0.0.1';
+
+const TITLES = {dashboard:'Prehľad',expenses:'Výdavky',report:'Vyúčtovanie',settings:'Nastavenia'};
+const TOP_BUTTONS = {expenses:'<button class="btn btn-primary btn-sm" onclick="openAddExpense()">+ Nový výdavok</button>'};
+
+const DEFAULT_TYPES = [
+  {id:1,name:'Nafta',divisor:2,desc:'Motorová nafta — DPH/2'},
+  {id:2,name:'Benzín',divisor:2,desc:'Benzín — DPH/2'},
+  {id:3,name:'AdBlue',divisor:1,desc:'AdBlue — plná DPH'},
+  {id:4,name:'Prezutie',divisor:1,desc:'Prezutie pneumatík — plná DPH'},
+  {id:5,name:'Servis / Oprava',divisor:1,desc:'Oprava, servis — plná DPH'},
+  {id:6,name:'IT vybavenie',divisor:1,desc:'Notebook, tablet, telefón — plná DPH'},
+  {id:7,name:'Kancelárske potreby',divisor:1,desc:'Papier, obálky — plná DPH'},
+  {id:8,name:'Iné',divisor:1,desc:'Ostatné — plná DPH'},
+];
+
+let ghCfg=null, gdCfg=null, gdToken=null, gdFileId=null, gdUser=null;
+let rootData=null, uid=null, curPage='dashboard', saveTimer=null;
+let editExpId=null, editTypId=null;
+let curMonth=null, reportMonth=null;
+
+const $ = id => document.getElementById(id);
+const udb = () => rootData.userData[uid];
+const fmtDate = d => d ? d.split('-').reverse().join('.') : '—';
+const fmtEur2 = v => (+(v||0)).toFixed(2);
+const nextId  = arr => arr.length ? Math.max(...arr.map(x=>x.id))+1 : 1;
+
+function toast(msg,t='ok'){
+  const el=$('toast'); el.textContent=msg;
+  el.className='show t'+t; setTimeout(()=>el.className='',2600);
+}
+function openModal(id){const o=$(id);o.classList.add('open');const m=o.querySelector('.modal');if(m)m.scrollTop=0;}
+function closeModal(id){$(id).classList.remove('open');}
+const debouncedSave=()=>{clearTimeout(saveTimer);saveTimer=setTimeout(saveData,700);};
+
+function emptyUser(){return {expenses:[], types:JSON.parse(JSON.stringify(DEFAULT_TYPES))};}
+function emptyRoot(){return {users:[], userData:{}};}
+
+function todayYM(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
+function ymLabel(ym){
+  if(!ym)return'—';
+  const [y,m]=ym.split('-');
+  const months=['Január','Február','Marec','Apríl','Máj','Jún','Júl','August','September','Október','November','December'];
+  return months[+m-1]+' '+y;
+}
+function changeMonth(dir){
+  let [y,m]=curMonth.split('-').map(Number);
+  m+=dir; if(m>12){m=1;y++;} if(m<1){m=12;y--;}
+  curMonth=y+'-'+String(m).padStart(2,'0');
+  renderExpenses();
+}
+function changeReportMonth(dir){
+  let [y,m]=reportMonth.split('-').map(Number);
+  m+=dir; if(m>12){m=1;y++;} if(m<1){m=12;y--;}
+  reportMonth=y+'-'+String(m).padStart(2,'0');
+  renderReport();
+}
+
+// ── GITHUB ────────────────────────────────────────────────────────────────────
+const ghBase=()=>`https://api.github.com/repos/${ghCfg.owner}/${ghCfg.repo}/contents/${ghCfg.path}`;
+const ghHdr =()=>({'Authorization':'Bearer '+ghCfg.token,'Accept':'application/vnd.github+json','Content-Type':'application/json'});
+async function ghGet(){
+  const r=await fetch(ghBase()+'?ref='+ghCfg.branch,{headers:ghHdr()});
+  if(r.status===404)return null;
+  if(r.status===401)throw new Error('Token neplatný (401)');
+  if(r.status===403)throw new Error('Prístup zamietnutý (403)');
+  if(!r.ok)throw new Error('GitHub GET: HTTP '+r.status);
+  const j=await r.json();
+  const d=JSON.parse(atob(j.content.replace(/\n/g,'')));
+  d._sha=j.sha; return d;
+}
+async function ghPut(data){
+  const sha=data._sha;
+  const p=JSON.parse(JSON.stringify(data)); delete p._sha;
+  const content=btoa(unescape(encodeURIComponent(JSON.stringify(p,null,2))));
+  const body={message:'Výdavky '+new Date().toISOString().slice(0,16).replace('T',' '),content,branch:ghCfg.branch};
+  if(sha)body.sha=sha;
+  const r=await fetch(ghBase(),{method:'PUT',headers:ghHdr(),body:JSON.stringify(body)});
+  if(!r.ok){
+    const e=await r.json().catch(()=>({}));
+    const hint=r.status===409?' (SHA konflikt — obnovte stránku)':r.status===403?' (token nemá právo zápisu)':r.status===401?' (token expiroval)':'';
+    throw new Error('GitHub PUT: HTTP '+r.status+hint+' — '+(e.message||''));
+  }
+  const j=await r.json();
+  rootData._sha=j.content.sha;
+  localStorage.setItem(LS_KEY,JSON.stringify(rootData));
+}
+function readGHForm(){
+  const owner=$('gh_owner').value.trim(), repo=$('gh_repo').value.trim();
+  const branch=$('gh_branch').value.trim()||'main', path=$('gh_path').value.trim()||'vydavky.json';
+  const token=$('gh_token').value.trim();
+  return (owner&&repo&&token)?{owner,repo,branch,path,token}:null;
+}
+async function testGH(){
+  $('ghTest').innerHTML='<span class="spinner"></span>';
+  const c=readGHForm(); if(!c){$('ghTest').textContent='Vyplňte polia';return;}
+  ghCfg=c;
+  try{const ex=await ghGet();const td=ex||{users:[],userData:{}};await ghPut(JSON.parse(JSON.stringify(td)));$('ghTest').textContent='OK';}
+  catch(e){$('ghTest').textContent='Chyba: '+e.message;}
+}
+function saveGHConfig(){
+  const c=readGHForm(); if(!c){toast('Vyplňte owner, repo a token','err');return;}
+  localStorage.setItem(LS_GH,JSON.stringify(c)); ghCfg=c; toast('GitHub uložený','ok');
+}
+function clearGHConfig(){
+  localStorage.removeItem(LS_GH); ghCfg=null; $('gh_token').value=''; toast('GitHub konfigurácia odstránená','ok');
+}
+
+// ── GOOGLE DRIVE ─────────────────────────────────────────────────────────────
+const GD_AUTH_URL='https://accounts.google.com/o/oauth2/v2/auth';
+const GD_FILES_URL='https://www.googleapis.com/drive/v3/files';
+const GD_UPLOAD_URL='https://www.googleapis.com/upload/drive/v3/files';
+const GD_SCOPES='https://www.googleapis.com/auth/drive.file';
+function gdCacheToken(token,fileId,user){gdToken=token;gdFileId=fileId;gdUser=user;localStorage.setItem('vydavky_gd_token',JSON.stringify({token,fileId,user,expires:Date.now()+55*60*1000}));}
+function gdClearToken(){gdToken=null;gdFileId=null;gdUser=null;localStorage.removeItem('vydavky_gd_token');}
+function gdSignIn(){
+  gdCfg=JSON.parse(localStorage.getItem(LS_GD)||'null');
+  if(!gdCfg?.clientId){$('gdStatus').textContent='Uložte Client ID';return;}
+  const redirectUri=location.origin+location.pathname;
+  const state=btoa(JSON.stringify({ts:Date.now()}));
+  localStorage.setItem('vydavky_gd_state',state);
+  const params=new URLSearchParams({client_id:gdCfg.clientId,redirect_uri:redirectUri,response_type:'token',scope:GD_SCOPES,state,prompt:'consent'});
+  window.location.href=GD_AUTH_URL+'?'+params;
+}
+function gdHandleRedirect(){
+  const hash=new URLSearchParams(location.hash.slice(1));
+  const token=hash.get('access_token'); if(!token)return;
+  history.replaceState(null,'',location.pathname);
+  gdToken=token;
+  fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{'Authorization':'Bearer '+token}})
+    .then(r=>r.json()).then(u=>{
+      const user={name:u.name||u.email,email:u.email,picture:u.picture};
+      gdCacheToken(token,null,user); gdUpdateUI(); toast('Prihlásený: '+user.name,'ok');
+      gdFindOrCreateFile().then(()=>loadData().then(()=>showPage(curPage)));
+    }).catch(()=>{gdCacheToken(token,null,null);});
+}
+async function gdFindOrCreateFile(){
+  const q=`name='${GD_FILENAME}' and trashed=false`;
+  const r=await fetch(`${GD_FILES_URL}?q=${encodeURIComponent(q)}&spaces=drive&fields=files(id,name)`,{headers:{'Authorization':'Bearer '+gdToken}});
+  const j=await r.json();
+  if(j.files?.length){gdFileId=j.files[0].id;gdCacheToken(gdToken,gdFileId,gdUser);return gdFileId;}
+  const meta={name:GD_FILENAME,mimeType:'application/json'};
+  const blob=new Blob([JSON.stringify(emptyRoot(),null,2)],{type:'application/json'});
+  const form=new FormData();form.append('metadata',new Blob([JSON.stringify(meta)],{type:'application/json'}));form.append('file',blob);
+  const cr=await fetch(`${GD_UPLOAD_URL}?uploadType=multipart&fields=id`,{method:'POST',headers:{'Authorization':'Bearer '+gdToken},body:form});
+  const cj=await cr.json(); gdFileId=cj.id; gdCacheToken(gdToken,gdFileId,gdUser); return gdFileId;
+}
+async function gdReadFile(){
+  if(!gdToken)return null; if(!gdFileId)await gdFindOrCreateFile(); if(!gdFileId)return null;
+  const r=await fetch(`${GD_FILES_URL}/${gdFileId}?alt=media`,{headers:{'Authorization':'Bearer '+gdToken}});
+  if(r.status===401){gdClearToken();throw new Error('GD token expiroval');} if(!r.ok)throw new Error('GD read: '+r.status); return r.json();
+}
+async function gdWriteFile(data){
+  if(!gdToken)throw new Error('Nie ste prihlásený do Google Drive'); if(!gdFileId)await gdFindOrCreateFile();
+  const r=await fetch(`${GD_UPLOAD_URL}/${gdFileId}?uploadType=media`,{method:'PATCH',headers:{'Authorization':'Bearer '+gdToken,'Content-Type':'application/json'},body:JSON.stringify(data,null,2)});
+  if(r.status===401){gdClearToken();throw new Error('GD token expiroval');} if(!r.ok)throw new Error('GD write: '+r.status);
+  localStorage.setItem(LS_KEY,JSON.stringify(data));
+}
+function gdSignOut(){gdClearToken();gdUpdateUI();toast('Odhlásený z Google Drive','ok');setSyncStatus('warn','Len localStorage');}
+function gdUpdateUI(){
+  const s=$('gdStatus'),u=$('gdUserInfo'); if(!s)return;
+  if(gdToken&&gdUser){s.textContent='Prihlásený';if(u){u.style.display='flex';$('gdUserName').textContent=gdUser.name||'';$('gdUserEmail').textContent=gdUser.email||'';if($('gdAvatar'))$('gdAvatar').src=gdUser.picture||'';}}
+  else{s.textContent='';if(u)u.style.display='none';}
+  const stored=gdCfg||JSON.parse(localStorage.getItem(LS_GD)||'null');
+  if($('gd_clientid')&&stored?.clientId)$('gd_clientid').value=stored.clientId;
+}
+function saveGDConfig(){const cid=$('gd_clientid').value.trim();if(!cid){toast('Zadajte Client ID','err');return;}localStorage.setItem(LS_GD,JSON.stringify({clientId:cid}));gdCfg={clientId:cid};toast('Client ID uložený','ok');}
+
+// ── LOAD/SAVE ────────────────────────────────────────────────────────────────
+function mode(){if(IS_LOCAL)return'local';if(gdToken)return'gdrive';if(ghCfg?.token)return'github';return'ls';}
+async function loadData(){
+  ghCfg=JSON.parse(localStorage.getItem(LS_GH)||'null');
+  gdCfg=JSON.parse(localStorage.getItem(LS_GD)||'null');
+  const gdCache=JSON.parse(localStorage.getItem('vydavky_gd_token')||'null');
+  if(gdCache?.expires>Date.now()){gdToken=gdCache.token;gdFileId=gdCache.fileId;gdUser=gdCache.user;}
+  try{
+    if(IS_LOCAL){const r=await fetch('data.json?t='+Date.now());if(r.ok){rootData=await r.json();return;}}
+    if(gdToken){const raw=await gdReadFile();if(raw){rootData=raw;return;}}
+    if(ghCfg?.token){const raw=await ghGet();if(raw){rootData=raw;return;}}
+  }catch(e){console.warn('Remote load failed',e);}
+  const ls=localStorage.getItem(LS_KEY);
+  rootData=ls?JSON.parse(ls):emptyRoot();
+  if(!rootData.users)rootData.users=[];
+  if(!rootData.userData)rootData.userData={};
+}
+async function saveData(){
+  localStorage.setItem(LS_KEY,JSON.stringify(rootData));
+  setSyncStatus('saving');
+  try{
+    if(mode()==='local'){const r=await fetch('/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(rootData)});if(r.ok){setSyncStatus('ok','Uložené lokálne');return;}throw new Error('Server '+r.status);}
+    if(mode()==='gdrive'){await gdWriteFile(rootData);setSyncStatus('ok','Google Drive');return;}
+    if(mode()==='github'){await ghPut(rootData);setSyncStatus('ok','GitHub');return;}
+    setSyncStatus('warn','Len localStorage');
+  }catch(e){setSyncStatus('err','Chyba: '+e.message.slice(0,50));console.error(e);}
+}
+function setSyncStatus(state,label){
+  const dot=$('syncDot'),lbl=$('syncLabel');
+  if(dot){dot.className='sync-dot'+(state==='warn'?' warn':state==='err'?' err':'');lbl.innerHTML=state==='saving'?'<span class="spinner"></span>':(label||'—');}
+  const dot2=$('syncDot2'),lbl2=$('syncLabel2');
+  if(dot2){dot2.className='sync-dot'+(state==='warn'?' warn':state==='err'?' err':'');lbl2.innerHTML=state==='saving'?'<span class="spinner"></span>':(label||'—');}
+}
+function forceUseLS(){gdClearToken();clearGHConfig();toast('Nastavené na localStorage','ok');setSyncStatus('warn','Len localStorage');}
+function switchStab(tab){
+  ['gh','gd','ls'].forEach(t=>{
+    const btn=$('stab-'+t),panel=$('spanel-'+t); if(!btn||!panel)return;
+    const a=t===tab;
+    btn.style.background=a?'var(--surface)':'transparent';
+    btn.style.boxShadow=a?'0 1px 4px rgba(0,0,0,0.08)':'none';
+    btn.style.fontWeight=a?'700':'500';
+    panel.style.display=a?'block':'none';
+  });
+  if(tab==='gd')gdUpdateUI();
+}
+
+// ── USERS ────────────────────────────────────────────────────────────────────
+const COLORS=['#2c5f4a','#d4a847','#c0392b','#4a7fc0','#8e44ad','#16a085','#e67e22','#2980b9'];
+function renderUserScreen(){
+  const grid=$('userGrid'); grid.innerHTML='';
+  rootData.users.forEach(u=>{
+    const b=document.createElement('div'); b.className='user-btn';
+    b.innerHTML='<div class="u-avatar" style="background:'+u.color+'">'+u.name.charAt(0).toUpperCase()+'</div><span class="u-name">'+u.name+'</span>';
+    b.onclick=()=>selectUser(u.id); grid.appendChild(b);
+  });
+  const a=document.createElement('div'); a.className='add-user-btn';
+  a.innerHTML='<span style="font-size:1.4rem">+</span><span>Nový</span>'; a.onclick=openAddUserModal;
+  grid.appendChild(a);
+}
+function selectUser(id){
+  uid=id; localStorage.setItem(LS_USER,id);
+  if(!rootData.userData[id])rootData.userData[id]=emptyUser();
+  const u=rootData.users.find(x=>x.id===id);
+  $('sbAv').textContent=u.name.charAt(0).toUpperCase(); $('sbAv').style.background=u.color;
+  $('sbName').textContent=u.name;
+  $('userScreen').style.display='none'; $('appMain').classList.add('visible');
+  syncMobileUser();
+  const m=mode();
+  setSyncStatus(m==='ls'?'warn':'ok',m==='local'?'Lokálny server':m==='gdrive'?'Google Drive':m==='github'?'GitHub':'localStorage');
+  showPage('dashboard');
+}
+function switchUser(){$('appMain').classList.remove('visible');$('userScreen').style.display='flex';renderUserScreen();}
+function openAddUserModal(){
+  $('nu_name').value='';
+  const cp=$('colorPicker'); cp.innerHTML='';
+  COLORS.forEach(c=>{
+    const d=document.createElement('div');
+    d.dataset.c=c;
+    d.style.cssText='width:28px;height:28px;border-radius:50%;background:'+c+';cursor:pointer;border:3px solid transparent;transition:border-color 0.15s;';
+    d.onclick=()=>{cp.querySelectorAll('div').forEach(x=>x.style.borderColor='transparent');d.style.borderColor='var(--text)';};
+    cp.appendChild(d);
+  });
+  cp.firstChild && cp.firstChild.click();
+  openModal('addUserModal'); setTimeout(()=>$('nu_name').focus(),100);
+}
+function createUser(){
+  const name=$('nu_name').value.trim(); if(!name){toast('Zadajte meno','err');return;}
+  const sel=Array.from($('colorPicker').children).find(d=>d.style.borderColor&&d.style.borderColor!=='transparent');
+  const color=sel?sel.dataset.c:COLORS[rootData.users.length%COLORS.length];
+  const id='u_'+Date.now();
+  rootData.users.push({id,name,color}); rootData.userData[id]=emptyUser();
+  debouncedSave(); closeModal('addUserModal'); renderUserScreen();
+}
+
+// ── NAVIGATION ────────────────────────────────────────────────────────────────
+const RENDER_FNS={dashboard:renderDashboard,expenses:renderExpenses,report:renderReport,settings:renderSettings};
+function showPage(page){
+  curPage=page;
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  const pg=$('page-'+page); if(pg)pg.classList.add('active');
+  const ni=document.querySelector('.nav-item[data-page="'+page+'"]'); if(ni)ni.classList.add('active');
+  $('pageTitle').textContent=TITLES[page]||page;
+  $('topAct').innerHTML=TOP_BUTTONS[page]||'';
+  RENDER_FNS[page]?.();
+  updateMobileNav(page);
+}
+function showSettingsTab(tab){
+  document.querySelectorAll('.stg-tab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.stg-panel').forEach(p=>p.classList.remove('active'));
+  const t=$('stgtab-'+tab); if(t)t.classList.add('active');
+  const p=$('stgpanel-'+tab); if(p)p.classList.add('active');
+}
+
+// ── EXPENSE TYPES ─────────────────────────────────────────────────────────────
+function getTypes(){return udb().types||[];}
+function openAddType(id){
+  editTypId=id||null;
+  const t=id?getTypes().find(x=>x.id===id):null;
+  $('typ_name').value=t?.name||'';
+  $('typ_divisor').value=t!=null&&t.divisor!=null?t.divisor:1;
+  $('typ_desc').value=t?.desc||'';
+  $('typeModalTitle').textContent=id?'Upraviť typ':'Nový typ';
+  openModal('typeModal'); setTimeout(()=>$('typ_name').focus(),100);
+}
+function saveType(){
+  const name=$('typ_name').value.trim(); if(!name){toast('Zadajte názov','err');return;}
+  const divisor=+$('typ_divisor').value;
+  const desc=$('typ_desc').value.trim();
+  const db=udb();
+  if(editTypId){
+    const t=db.types.find(x=>x.id===editTypId);
+    if(t){t.name=name;t.divisor=divisor;t.desc=desc;}
+  } else {
+    db.types.push({id:nextId(db.types),name,divisor,desc});
+  }
+  debouncedSave(); closeModal('typeModal'); renderSettings(); toast('Typ uložený','ok');
+}
+function deleteType(id){
+  if(!confirm('Odstrániť typ?'))return;
+  udb().types=udb().types.filter(x=>x.id!==id);
+  debouncedSave(); renderSettings();
+}
+
+// ── EXPENSE FORM ──────────────────────────────────────────────────────────────
+function populateTypeSelect(){
+  const sel=$('exp_type');
+  const types=getTypes();
+  sel.innerHTML='<option value="">— vybrať —</option>'+types.map(t=>'<option value="'+t.id+'">'+t.name+'</option>').join('');
+}
+function onTypeChange(){
+  const val=$('exp_type').value;
+  if(val){
+    const t=getTypes().find(x=>x.id===+val);
+    if(t){
+      $('exp_divisor').value=t.divisor;
+      if(!$('exp_desc').value)$('exp_desc').value=t.name;
+      calcToPay();
+    }
+  }
+}
+function recalcExpense(){
+  const amount=parseFloat($('exp_amount').value)||0;
+  const vatRate=parseFloat($('exp_vatrate').value)||20;
+  const vatExact=vatRate>0 ? amount*(vatRate/100)/(1+vatRate/100) : 0;
+  $('exp_vat').value=vatExact.toFixed(4);
+  calcToPay();
+}
+function calcToPay(){
+  const amount=parseFloat($('exp_amount').value)||0;
+  const vat=parseFloat($('exp_vat').value)||0;
+  const divisor=+$('exp_divisor').value;
+  const topay = divisor===0 ? amount : vat/divisor;
+  $('exp_topay').value=topay.toFixed(4);
+}
+
+function openAddExpense(){
+  editExpId=null;
+  $('expModalTitle').textContent='Nový výdavok';
+  const today=new Date().toISOString().slice(0,10);
+  $('exp_date').value=today;
+  $('exp_desc').value='';
+  $('exp_amount').value='';
+  $('exp_vat').value='';
+  $('exp_topay').value='';
+  $('exp_vatrate').value='20';
+  $('exp_divisor').value='2';
+  $('exp_paid').value='0';
+  populateTypeSelect();
+  $('exp_type').value='';
+  openModal('expModal'); setTimeout(()=>$('exp_amount').focus(),100);
+}
+function openEditExpense(id){
+  editExpId=id;
+  const e=udb().expenses.find(x=>x.id===id); if(!e)return;
+  $('expModalTitle').textContent='Upraviť výdavok';
+  $('exp_date').value=e.date;
+  $('exp_desc').value=e.desc||'';
+  $('exp_amount').value=e.amount;
+  $('exp_vat').value=e.vat;
+  $('exp_topay').value=e.topay;
+  $('exp_vatrate').value=e.vatRate||'20';
+  $('exp_divisor').value=e.divisor;
+  $('exp_paid').value=e.paid?'1':'0';
+  populateTypeSelect();
+  $('exp_type').value=e.typeId||'';
+  openModal('expModal');
+}
+function saveExpense(){
+  const date=$('exp_date').value; if(!date){toast('Zadajte dátum','err');return;}
+  const amount=parseFloat($('exp_amount').value); if(!amount){toast('Zadajte sumu','err');return;}
+  const vat=parseFloat($('exp_vat').value)||0;
+  const topay=parseFloat($('exp_topay').value)||0;
+  const divisor=+$('exp_divisor').value;
+  const typeVal=$('exp_type').value;
+  const typeId=typeVal?+typeVal:null;
+  const desc=$('exp_desc').value.trim();
+  const typeName=typeId?getTypes().find(x=>x.id===typeId)?.name||'':'' ;
+  const displayName=desc||(typeName||'Výdavok');
+  const db=udb();
+  if(editExpId){
+    const e=db.expenses.find(x=>x.id===editExpId);
+    if(e)Object.assign(e,{date,amount,vat,topay,divisor,typeId,desc:displayName,vatRate:+$('exp_vatrate').value,paid:$('exp_paid').value==='1'});
+  } else {
+    db.expenses.push({id:nextId(db.expenses),date,amount,vat,topay,divisor,typeId,desc:displayName,vatRate:+$('exp_vatrate').value,paid:false,created:Date.now()});
+  }
+  debouncedSave(); closeModal('expModal'); renderExpenses(); renderDashboard(); toast('Výdavok uložený','ok');
+}
+function deleteExpense(id){
+  if(!confirm('Odstrániť výdavok?'))return;
+  udb().expenses=udb().expenses.filter(x=>x.id!==id);
+  debouncedSave(); renderExpenses(); renderDashboard();
+}
+function togglePaid(id){
+  const e=udb().expenses.find(x=>x.id===id); if(!e)return;
+  e.paid=!e.paid; debouncedSave(); renderExpenses(); renderDashboard();
+}
+function markAllPaid(){
+  const db=udb(); const ym=curMonth; let cnt=0;
+  db.expenses.forEach(e=>{if(e.date.startsWith(ym)&&!e.paid){e.paid=true;cnt++;}});
+  if(!cnt){toast('Všetky už zaplatené','ok');return;}
+  debouncedSave(); renderExpenses(); renderDashboard(); toast(cnt+' výdavkov označených','ok');
+}
+
+// ── RENDER EXPENSES ───────────────────────────────────────────────────────────
+function renderExpenses(){
+  if(!uid)return;
+  if(!curMonth)curMonth=todayYM();
+  $('monthLabel').textContent=ymLabel(curMonth);
+  const db=udb();
+  const rows=db.expenses.filter(e=>e.date.startsWith(curMonth)).sort((a,b)=>a.date.localeCompare(b.date));
+  $('expTableTitle').textContent='Výdavky — '+ymLabel(curMonth);
+  const totalToPay=rows.reduce((s,e)=>s+e.topay,0);
+  const unpaid=rows.filter(e=>!e.paid).reduce((s,e)=>s+e.topay,0);
+  $('expTableTotal').innerHTML='Spolu: <strong>'+fmtEur2(totalToPay)+' €</strong> | Nezaplatené: <strong style="color:var(--warn)">'+fmtEur2(unpaid)+' €</strong>';
+  const tbody=$('expTableBody');
+  if(!rows.length){tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:24px;">Žiadne výdavky v tomto mesiaci</td></tr>';return;}
+  tbody.innerHTML=rows.map(e=>{
+    const typeName=e.typeId?getTypes().find(x=>x.id===e.typeId)?.name||'—':'—';
+    const divLabel=e.divisor===0?'plná':e.divisor===1?'1/1':e.divisor===2?'1/2':'1/4';
+    const rowClass=e.paid?'paid-row':'';
+    return '<tr class="'+rowClass+'">'
+      +'<td><input type="checkbox" class="paid-check"'+(e.paid?' checked':'')+' onchange="togglePaid('+e.id+')" title="'+(e.paid?'Zaplatené':'Nezaplatené')+'"></td>'
+      +'<td>'+fmtDate(e.date)+'</td>'
+      +'<td>'+e.desc+'</td>'
+      +'<td><span class="badge badge-info">'+typeName+'</span></td>'
+      +'<td>'+fmtEur2(e.amount)+' €</td>'
+      +'<td>'+fmtEur2(e.vat)+' €</td>'
+      +'<td style="font-size:0.76rem;color:var(--text3);">'+divLabel+'</td>'
+      +'<td style="font-weight:600;color:var(--accent);">'+fmtEur2(e.topay)+' €</td>'
+      +'<td><button class="btn-icon" onclick="openEditExpense('+e.id+')" title="Upraviť">&#9998;</button> <button class="btn-icon" onclick="deleteExpense('+e.id+')" title="Odstrániť">&#128465;</button></td>'
+      +'</tr>';
+  }).join('');
+}
+
+// ── RENDER DASHBOARD ──────────────────────────────────────────────────────────
+function renderDashboard(){
+  if(!uid)return;
+  const db=udb();
+  const ym=curMonth||todayYM();
+  const curRows=db.expenses.filter(e=>e.date.startsWith(ym));
+  const allRows=db.expenses;
+  const curTotal=curRows.reduce((s,e)=>s+e.topay,0);
+  const curUnpaid=curRows.filter(e=>!e.paid).reduce((s,e)=>s+e.topay,0);
+  const allTotal=allRows.reduce((s,e)=>s+e.topay,0);
+  const allUnpaid=allRows.filter(e=>!e.paid).reduce((s,e)=>s+e.topay,0);
+  $('dashStats').innerHTML=
+    '<div class="stat-card ag"><div class="stat-label">Tento mesiac</div><div class="stat-value">'+fmtEur2(curTotal)+' €</div><div class="stat-sub">'+curRows.length+' výdavkov</div></div>'
+    +'<div class="stat-card au"><div class="stat-label">Nezaplatené (mesiac)</div><div class="stat-value">'+fmtEur2(curUnpaid)+' €</div><div class="stat-sub">'+curRows.filter(e=>!e.paid).length+' položiek</div></div>'
+    +'<div class="stat-card ab"><div class="stat-label">Celkom (všetky)</div><div class="stat-value">'+fmtEur2(allTotal)+' €</div><div class="stat-sub">'+allRows.length+' výdavkov</div></div>'
+    +'<div class="stat-card ar"><div class="stat-label">Nezaplatené (celkom)</div><div class="stat-value">'+fmtEur2(allUnpaid)+' €</div><div class="stat-sub">'+allRows.filter(e=>!e.paid).length+' položiek</div></div>';
+
+  // Monthly summary
+  const months={};
+  allRows.forEach(e=>{const m=e.date.slice(0,7);if(!months[m])months[m]={topay:0,unpaid:0,cnt:0};months[m].topay+=e.topay;months[m].cnt++;if(!e.paid)months[m].unpaid+=e.topay;});
+  const sortedM=Object.keys(months).sort().reverse().slice(0,8);
+
+  // Type breakdown for current month
+  const typeMap={};
+  curRows.forEach(e=>{
+    const key=e.typeId?getTypes().find(x=>x.id===e.typeId)?.name||'Iné':'Iné';
+    if(!typeMap[key])typeMap[key]={cnt:0,topay:0};typeMap[key].cnt++;typeMap[key].topay+=e.topay;
+  });
+  const typeEntries=Object.entries(typeMap).sort((a,b)=>b[1].topay-a[1].topay);
+
+  $('dashCards').innerHTML=
+    '<div class="card"><div class="card-header"><h3>Prehľad mesiacov</h3></div><div class="table-wrap"><table>'
+    +'<thead><tr><th>Mesiac</th><th>Výdavky</th><th>K úhrade</th><th>Nezaplatené</th><th></th></tr></thead><tbody>'
+    +sortedM.map(m=>'<tr>'
+      +'<td style="font-weight:600;">'+ymLabel(m)+'</td>'
+      +'<td>'+months[m].cnt+'</td>'
+      +'<td>'+fmtEur2(months[m].topay)+' €</td>'
+      +'<td style="color:'+(months[m].unpaid>0?'var(--warn)':'var(--accent)')+';">'+fmtEur2(months[m].unpaid)+' €</td>'
+      +'<td><button class="btn-icon btn-sm" onclick="curMonth=\''+m+'\';showPage(\'expenses\')" title="Zobraziť">&#8594;</button></td>'
+      +'</tr>').join('')
+    +(sortedM.length===0?'<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:18px;">Žiadne záznamy</td></tr>':'')
+    +'</tbody></table></div></div>'
+    +'<div class="card"><div class="card-header"><h3>'+ymLabel(ym)+' — podľa typu</h3></div><div class="table-wrap"><table>'
+    +'<thead><tr><th>Typ</th><th>Počet</th><th>K úhrade</th></tr></thead><tbody>'
+    +(typeEntries.length?typeEntries.map(([k,v])=>'<tr><td>'+k+'</td><td>'+v.cnt+'</td><td>'+fmtEur2(v.topay)+' €</td></tr>').join(''):'<tr><td colspan="3" style="text-align:center;color:var(--text3);padding:16px;">Žiadne výdavky</td></tr>')
+    +'</tbody></table></div></div>';
+}
+
+// ── RENDER REPORT ─────────────────────────────────────────────────────────────
+function renderReport(){
+  if(!uid)return;
+  if(!reportMonth)reportMonth=curMonth||todayYM();
+  $('reportMonthLabel').textContent=ymLabel(reportMonth);
+  $('reportTitle').textContent='Vyúčtovanie — '+ymLabel(reportMonth);
+  const rows=udb().expenses.filter(e=>e.date.startsWith(reportMonth)).sort((a,b)=>a.date.localeCompare(b.date));
+  const total=rows.reduce((s,e)=>s+e.topay,0);
+  const paid=rows.filter(e=>e.paid).reduce((s,e)=>s+e.topay,0);
+  const unpaid=rows.filter(e=>!e.paid).reduce((s,e)=>s+e.topay,0);
+  $('reportBody').innerHTML=
+    '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px;">'
+    +'<div style="background:var(--surface2);border-radius:8px;padding:12px 14px;border-left:4px solid var(--accent);">'
+    +'<div style="font-size:0.71rem;color:var(--text2);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;">Celkom k úhrade</div>'
+    +'<div style="font-size:1.4rem;font-weight:700;">'+fmtEur2(total)+' €</div>'
+    +'<div style="font-size:0.73rem;color:var(--text3);">'+rows.length+' výdavkov</div></div>'
+    +'<div style="background:var(--surface2);border-radius:8px;padding:12px 14px;border-left:4px solid #6bcb77;">'
+    +'<div style="font-size:0.71rem;color:var(--text2);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;">Zaplatené</div>'
+    +'<div style="font-size:1.4rem;font-weight:700;color:var(--accent);">'+fmtEur2(paid)+' €</div>'
+    +'<div style="font-size:0.73rem;color:var(--text3);">'+rows.filter(e=>e.paid).length+' položiek</div></div>'
+    +'<div style="background:var(--surface2);border-radius:8px;padding:12px 14px;border-left:4px solid var(--warn);">'
+    +'<div style="font-size:0.71rem;color:var(--text2);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;">Nezaplatené</div>'
+    +'<div style="font-size:1.4rem;font-weight:700;color:var(--warn);">'+fmtEur2(unpaid)+' €</div>'
+    +'<div style="font-size:0.73rem;color:var(--text3);">'+rows.filter(e=>!e.paid).length+' položiek</div></div></div>'
+    +'<div class="table-wrap"><table>'
+    +'<thead><tr><th>Dátum</th><th>Popis</th><th>Typ</th><th>Plná suma</th><th>DPH</th><th>Del.</th><th>K úhrade</th><th>Stav</th></tr></thead>'
+    +'<tbody>'
+    +rows.map(e=>{
+      const typeName=e.typeId?getTypes().find(x=>x.id===e.typeId)?.name||'—':'—';
+      const divLabel=e.divisor===0?'plná':e.divisor===1?'1/1':e.divisor===2?'1/2':'1/4';
+      return '<tr>'
+        +'<td>'+fmtDate(e.date)+'</td>'
+        +'<td>'+e.desc+'</td>'
+        +'<td>'+typeName+'</td>'
+        +'<td>'+fmtEur2(e.amount)+' €</td>'
+        +'<td>'+fmtEur2(e.vat)+' €</td>'
+        +'<td style="font-size:0.76rem;color:var(--text3);">'+divLabel+'</td>'
+        +'<td style="font-weight:600;">'+fmtEur2(e.topay)+' €</td>'
+        +'<td><span class="badge '+(e.paid?'badge-ok':'badge-warn')+'">'+(e.paid?'Zaplatené':'Nezaplatené')+'</span></td>'
+        +'</tr>';
+    }).join('')
+    +(rows.length?'<tr class="report-total"><td colspan="6" style="text-align:right;font-weight:700;">SPOLU</td><td style="font-weight:700;">'+fmtEur2(total)+' €</td><td></td></tr>':'<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:20px;">Žiadne výdavky</td></tr>')
+    +'</tbody></table></div>';
+}
+
+// ── RENDER SETTINGS ───────────────────────────────────────────────────────────
+function renderSettings(){
+  if(!uid)return;
+  const types=getTypes();
+  $('typesList').innerHTML=types.map(t=>
+    '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--surface2);border-radius:8px;margin-bottom:7px;">'
+    +'<div style="flex:1;">'
+    +'<div style="font-weight:600;font-size:0.87rem;">'+t.name+'</div>'
+    +'<div style="font-size:0.76rem;color:var(--text3);">'+(t.desc||'')+'&nbsp;|&nbsp;Deliteľ: <strong>'+t.divisor+'</strong></div>'
+    +'</div>'
+    +'<button class="btn-icon btn-sm" onclick="openAddType('+t.id+')" title="Upraviť">&#9998;</button>'
+    +'<button class="btn-icon btn-sm" onclick="deleteType('+t.id+')" title="Odstrániť">&#128465;</button>'
+    +'</div>'
+  ).join('');
+  if(ghCfg){
+    if($('gh_owner'))$('gh_owner').value=ghCfg.owner||'';
+    if($('gh_repo'))$('gh_repo').value=ghCfg.repo||'';
+    if($('gh_branch'))$('gh_branch').value=ghCfg.branch||'main';
+    if($('gh_path'))$('gh_path').value=ghCfg.path||'vydavky.json';
+    if($('gh_token'))$('gh_token').value=ghCfg.token||'';
+  }
+  gdUpdateUI();
+}
+
+// ── EXPORT/IMPORT ─────────────────────────────────────────────────────────────
+function exportData(){
+  const blob=new Blob([JSON.stringify(rootData,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='vydavky_export_'+todayYM()+'.json'; a.click();
+}
+function importData(ev){
+  const file=ev.target.files[0]; if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const d=JSON.parse(e.target.result);
+      if(!d.users||!d.userData)throw new Error('Neplatný formát');
+      rootData=d; debouncedSave();
+      toast('Import úspešný','ok'); renderDashboard(); renderExpenses();
+    }catch(err){toast('Chyba importu: '+err.message,'err');}
+  };
+  reader.readAsText(file); ev.target.value='';
+}
+
+// ── MOBILE ────────────────────────────────────────────────────────────────────
+function toggleMobMenu(){const d=$('mobDrawer'),o=$('mobOverlay');d.classList.toggle('open');o.classList.toggle('open');document.body.style.overflow=d.classList.contains('open')?'hidden':'';}
+function closeMobMenu(){$('mobDrawer')?.classList.remove('open');$('mobOverlay')?.classList.remove('open');document.body.style.overflow='';}
+function toggleMobFab(){const m=$('mobFabMenu'),b=$('mobFabMain'),bd=$('mobFabBackdrop');const o=m?.classList.contains('open');if(o){closeMobFab();}else{m?.classList.add('open');b?.classList.add('open');bd?.classList.add('open');document.body.style.overflow='hidden';}}
+function closeMobFab(){$('mobFabMenu')?.classList.remove('open');$('mobFabMain')?.classList.remove('open');$('mobFabBackdrop')?.classList.remove('open');document.body.style.overflow='';}
+function updateMobileNav(page){document.querySelectorAll('.mob-bn-item').forEach(el=>el.classList.toggle('active',el.dataset.page===page));document.querySelectorAll('.mob-nav-item').forEach(el=>el.classList.toggle('active',el.dataset.page===page));document.body.className='page-'+page;}
+function syncMobileUser(){const av2=$('sbAv2'),n2=$('sbName2'),av=$('sbAv'),n=$('sbName');if(av2&&av){av2.textContent=av.textContent;av2.style.background=av.style.background;}if(n2&&n)n2.textContent=n.textContent;}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+async function init(){
+  gdHandleRedirect();
+  await loadData();
+  if(!rootData.users)rootData.users=[];
+  if(!rootData.userData)rootData.userData={};
+  curMonth=todayYM(); reportMonth=todayYM();
+  const lastUid=localStorage.getItem(LS_USER);
+  const lastUser=lastUid&&rootData.users.find(u=>u.id===lastUid);
+  if(lastUser){selectUser(lastUser.id);return;}
+  $('userScreen').style.display='flex'; renderUserScreen();
+}
+init();
+</script>
+</body>
+</html>
