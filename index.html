@@ -611,15 +611,29 @@ async function ghGet(){
   d._sha=j.sha; return d;
 }
 async function ghPut(data){
-  const sha=data._sha;
+  // Fetch current SHA if we don't have one — prevents HTTP 422 when file already exists
+  if(!data._sha){
+    try{const existing=await ghGet();if(existing&&existing._sha)data._sha=existing._sha;}catch(_){}
+  }
+  const sha=data._sha||null;
   const p=JSON.parse(JSON.stringify(data)); delete p._sha;
   const content=btoa(unescape(encodeURIComponent(JSON.stringify(p,null,2))));
-  const body={message:'Výdavky '+new Date().toISOString().slice(0,16).replace('T',' '),content,branch:ghCfg.branch};
+  const body={message:'Vydavky '+new Date().toISOString().slice(0,16).replace('T',' '),content,branch:ghCfg.branch};
   if(sha)body.sha=sha;
-  const r=await fetch(ghBase(),{method:'PUT',headers:ghHdr(),body:JSON.stringify(body)});
+  let r=await fetch(ghBase(),{method:'PUT',headers:ghHdr(),body:JSON.stringify(body)});
+  // On 422 (wrong/stale SHA) fetch current SHA and retry once
+  if(r.status===422){
+    try{
+      const existing=await ghGet();
+      if(existing&&existing._sha){
+        body.sha=existing._sha;
+        r=await fetch(ghBase(),{method:'PUT',headers:ghHdr(),body:JSON.stringify(body)});
+      }
+    }catch(_){}
+  }
   if(!r.ok){
     const e=await r.json().catch(()=>({}));
-    const hint=r.status===409?' (SHA konflikt — obnovte stránku)':r.status===403?' (token nemá právo zápisu)':r.status===401?' (token expiroval)':'';
+    const hint=r.status===409?' (SHA konflikt — obnovte stranku)':r.status===422?' (SHA problem — skuste znova)':r.status===403?' (token nema pravo zapisu)':r.status===401?' (token expirovla)':'';
     throw new Error('GitHub PUT: HTTP '+r.status+hint+' — '+(e.message||''));
   }
   const j=await r.json();
@@ -1117,12 +1131,51 @@ function exportData(){
 function importData(ev){
   const file=ev.target.files[0]; if(!file)return;
   const reader=new FileReader();
-  reader.onload=e=>{
+  reader.onload=async e=>{
     try{
       const d=JSON.parse(e.target.result);
-      if(!d.users||!d.userData)throw new Error('Neplatný formát');
-      rootData=d; debouncedSave();
-      toast('Import úspešný','ok'); renderDashboard(); renderExpenses();
+      // Accept full rootData {users,userData} or single-user {expenses,types}
+      let srcExpenses=[], srcTypes=[];
+      if(d.users&&d.userData){
+        const firstUid=Object.keys(d.userData)[0];
+        if(!firstUid)throw new Error('Súbor neobsahuje žiadne používateľské dáta');
+        srcExpenses=d.userData[firstUid].expenses||[];
+        srcTypes=d.userData[firstUid].types||[];
+      } else if(Array.isArray(d.expenses)){
+        srcExpenses=d.expenses||[];
+        srcTypes=d.types||[];
+      } else {
+        throw new Error('Neplatný formát súboru');
+      }
+      if(!srcExpenses.length&&!srcTypes.length)throw new Error('Súbor neobsahuje žiadne dáta');
+      // Merge into current user — do NOT replace rootData
+      const db=udb();
+      const maxId=db.expenses.length?Math.max(...db.expenses.map(x=>x.id)):0;
+      let nextExpId=maxId+1, added=0, skipped=0;
+      for(const ex of srcExpenses){
+        // Skip duplicates: same date + amount + desc
+        const dup=db.expenses.find(x=>x.date===ex.date&&Math.abs(x.amount-ex.amount)<0.01&&x.desc===ex.desc);
+        if(dup){skipped++;continue;}
+        db.expenses.push(Object.assign({},ex,{id:nextExpId++,created:ex.created||Date.now()}));
+        added++;
+      }
+      // Merge types by name (case-insensitive)
+      let typesAdded=0;
+      const maxTypeId=db.types.length?Math.max(...db.types.map(x=>x.id)):0;
+      let nextTypeId=maxTypeId+1;
+      for(const t of srcTypes){
+        if(!db.types.find(x=>x.name.toLowerCase()===t.name.toLowerCase())){
+          db.types.push(Object.assign({},t,{id:nextTypeId++}));
+          typesAdded++;
+        }
+      }
+      db.expenses.sort((a,b)=>a.date.localeCompare(b.date));
+      await saveData();
+      let msg='Import: '+added+' pridaných';
+      if(skipped)msg+=' ('+skipped+' duplikátov preskočených)';
+      if(typesAdded)msg+=' + '+typesAdded+' typov';
+      toast(msg,'ok');
+      renderDashboard(); renderExpenses(); renderSettings();
     }catch(err){toast('Chyba importu: '+err.message,'err');}
   };
   reader.readAsText(file); ev.target.value='';
