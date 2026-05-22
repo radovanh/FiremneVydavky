@@ -437,9 +437,9 @@ tr.paid-row td:first-child{opacity:1;}
         <div class="form-group">
           <label>DPH sadzba (%)</label>
           <select id="exp_vatrate" onchange="recalcExpense()">
-            <option value="20">20%</option>
             <option value="23">23%</option>
-            <option value="10">10%</option>
+            <option value="19">19%</option>
+            <option value="5">5%</option>
             <option value="0">0%</option>
           </select>
         </div>
@@ -870,7 +870,7 @@ function onTypeChange(){
 }
 function recalcExpense(){
   const amount=parseFloat($('exp_amount').value)||0;
-  const vatRate=parseFloat($('exp_vatrate').value)||20;
+  const vatRate=parseFloat($('exp_vatrate').value)||23;
   const vatExact=vatRate>0 ? amount*(vatRate/100)/(1+vatRate/100) : 0;
   $('exp_vat').value=vatExact.toFixed(4);
   calcToPay();
@@ -886,13 +886,22 @@ function calcToPay(){
 function openAddExpense(){
   editExpId=null;
   $('expModalTitle').textContent='Nový výdavok';
-  const today=new Date().toISOString().slice(0,10);
-  $('exp_date').value=today;
+  // Preselect date: use curMonth if different from today's month, else today
+  const todayFull=new Date().toISOString().slice(0,10);
+  const todayM=todayYM();
+  let defaultDate;
+  if(curMonth && curMonth !== todayM){
+    // Use first day of selected month
+    defaultDate=curMonth+'-01';
+  } else {
+    defaultDate=todayFull;
+  }
+  $('exp_date').value=defaultDate;
   $('exp_desc').value='';
   $('exp_amount').value='';
   $('exp_vat').value='';
   $('exp_topay').value='';
-  $('exp_vatrate').value='20';
+  $('exp_vatrate').value='23';
   $('exp_divisor').value='2';
   $('exp_paid').value='0';
   populateTypeSelect();
@@ -908,7 +917,7 @@ function openEditExpense(id){
   $('exp_amount').value=e.amount;
   $('exp_vat').value=e.vat;
   $('exp_topay').value=e.topay;
-  $('exp_vatrate').value=e.vatRate||'20';
+  $('exp_vatrate').value=e.vatRate||'23';
   $('exp_divisor').value=e.divisor;
   $('exp_paid').value=e.paid?'1':'0';
   populateTypeSelect();
