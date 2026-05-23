@@ -205,12 +205,7 @@ tr.paid-row td:first-child{opacity:1;}
   /* FAB */
   .mob-fab-group{display:block;position:fixed;bottom:66px;right:14px;z-index:99;}
   .mob-fab{display:flex;align-items:center;justify-content:center;width:48px;height:48px;border-radius:50%;background:var(--accent);color:#fff;font-size:1.5rem;font-weight:300;border:none;cursor:pointer;box-shadow:0 4px 16px rgba(44,95,74,0.45);transition:transform 0.15s;position:relative;z-index:1;}
-  .mob-fab.open{transform:rotate(45deg);background:#235040;}
-  .mob-fab-menu{position:absolute;bottom:58px;right:0;display:flex;flex-direction:column;gap:10px;align-items:flex-end;opacity:0;pointer-events:none;transform:translateY(10px);transition:opacity 0.18s ease,transform 0.18s ease;}
-  .mob-fab-menu.open{opacity:1;pointer-events:auto;transform:translateY(0);}
-  .mob-fab-action{display:flex;align-items:center;gap:10px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:25px;padding:9px 16px 9px 13px;font-size:0.9rem;font-family:inherit;font-weight:500;cursor:pointer;white-space:nowrap;box-shadow:0 2px 10px rgba(0,0,0,0.12);}
-  .mob-fab-backdrop{display:none;position:fixed;inset:0;z-index:98;background:rgba(0,0,0,0.18);}
-  .mob-fab-backdrop.open{display:block;}
+
   body.page-report .mob-fab-group,body.page-settings .mob-fab-group{display:none!important;}
   /* Report summary: 2-col on mobile handled above */
   /* Report month nav */
@@ -442,11 +437,7 @@ tr.paid-row td:first-child{opacity:1;}
     <div class="mob-bn-item" data-page="settings" onclick="showPage('settings')"><span>⚙️</span><span>Nastav.</span></div>
   </nav>
   <div class="mob-fab-group">
-    <div class="mob-fab-backdrop" id="mobFabBackdrop" onclick="closeMobFab()"></div>
-    <div class="mob-fab-menu" id="mobFabMenu">
-      <button class="mob-fab-action" onclick="openAddExpense();closeMobFab()">🧾 Nový výdavok</button>
-    </div>
-    <button class="mob-fab" id="mobFabMain" onclick="toggleMobFab()">+</button>
+    <button class="mob-fab" id="mobFabMain" onclick="openAddExpense()">+</button>
   </div>
 </div>
 
@@ -1200,8 +1191,7 @@ function importData(ev){
 // ── MOBILE ────────────────────────────────────────────────────────────────────
 function toggleMobMenu(){const d=$('mobDrawer'),o=$('mobOverlay');d.classList.toggle('open');o.classList.toggle('open');document.body.style.overflow=d.classList.contains('open')?'hidden':'';}
 function closeMobMenu(){$('mobDrawer')?.classList.remove('open');$('mobOverlay')?.classList.remove('open');document.body.style.overflow='';}
-function toggleMobFab(){const m=$('mobFabMenu'),b=$('mobFabMain'),bd=$('mobFabBackdrop');const o=m?.classList.contains('open');if(o){closeMobFab();}else{m?.classList.add('open');b?.classList.add('open');bd?.classList.add('open');document.body.style.overflow='hidden';}}
-function closeMobFab(){$('mobFabMenu')?.classList.remove('open');$('mobFabMain')?.classList.remove('open');$('mobFabBackdrop')?.classList.remove('open');document.body.style.overflow='';}
+
 function updateMobileNav(page){document.querySelectorAll('.mob-bn-item').forEach(el=>el.classList.toggle('active',el.dataset.page===page));document.querySelectorAll('.mob-nav-item').forEach(el=>el.classList.toggle('active',el.dataset.page===page));document.body.className='page-'+page;}
 function syncMobileUser(){const av2=$('sbAv2'),n2=$('sbName2'),av=$('sbAv'),n=$('sbName');if(av2&&av){av2.textContent=av.textContent;av2.style.background=av.style.background;}if(n2&&n)n2.textContent=n.textContent;}
 
