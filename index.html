@@ -141,6 +141,15 @@ tr.paid-row td:first-child{opacity:1;}
 .paid-check{width:17px;height:17px;cursor:pointer;accent-color:var(--accent);}
 /* REPORT TOTAL ROW */
 .report-total{font-weight:700;background:var(--surface2)!important;}
+/* SEARCH */
+.search-wrap{position:relative;flex:1;min-width:180px;max-width:340px;}
+.search-wrap input{width:100%;padding:7px 32px 7px 32px;border:1px solid var(--border);border-radius:20px;font-family:'DM Sans',sans-serif;font-size:0.84rem;background:var(--surface);color:var(--text);outline:none;transition:border-color 0.15s,box-shadow 0.15s;}
+.search-wrap input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(44,95,74,0.1);}
+.search-wrap .si{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:0.9rem;pointer-events:none;}
+.search-wrap .sx{position:absolute;right:9px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text3);cursor:pointer;font-size:1rem;line-height:1;padding:2px;display:none;}
+.search-wrap input:not(:placeholder-shown) ~ .sx{display:block;}
+.search-active .month-nav{opacity:0.4;pointer-events:none;}
+.search-match{background:rgba(212,168,71,0.25);border-radius:2px;}
 /* MOBILE */
 .mob-fab-group,.mob-bottom-nav,.mob-menu-btn{display:none;}
 #mobOverlay,#mobDrawer{display:none;}
@@ -163,7 +172,9 @@ tr.paid-row td:first-child{opacity:1;}
   /* Dashboard cards: stack vertically */
   #dashCards{grid-template-columns:1fr!important;gap:10px;}
   /* Expenses page header: stack month nav and button */
-  #page-expenses>div:first-child{flex-direction:column;align-items:flex-start;gap:8px;}
+  #expHeader{flex-direction:column;align-items:stretch;gap:8px;}
+  .search-wrap{max-width:100%;}
+  #markPaidBtn{width:100%;justify-content:center;}
   #monthLabel{min-width:100px;font-size:0.88rem;}
   /* Expense table: hide less important columns, compact */
   .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
@@ -285,13 +296,18 @@ tr.paid-row td:first-child{opacity:1;}
 
         <!-- EXPENSES -->
         <div class="page" id="page-expenses">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;" id="expHeader">
             <div class="month-nav">
               <button onclick="changeMonth(-1)">&#8249;</button>
               <span id="monthLabel">—</span>
               <button onclick="changeMonth(1)">&#8250;</button>
             </div>
-            <button class="btn btn-secondary btn-sm" onclick="markAllPaid()">&#10003; Označiť zaplatený</button>
+            <div class="search-wrap">
+              <span class="si">&#128269;</span>
+              <input type="search" id="expSearch" placeholder="Hľadať vo všetkých mesiacoch…" oninput="onSearchInput()" autocomplete="off">
+              <button class="sx" onclick="clearSearch()" title="Zrušiť hľadanie">&#10005;</button>
+            </div>
+            <button class="btn btn-secondary btn-sm" id="markPaidBtn" onclick="markAllPaid()">&#10003; Označiť zaplatený</button>
           </div>
           <div class="card">
             <div class="card-header">
@@ -602,7 +618,7 @@ const DEFAULT_TYPES = [
 let ghCfg=null, gdCfg=null, gdToken=null, gdFileId=null, gdUser=null;
 let rootData=null, uid=null, curPage='dashboard', saveTimer=null;
 let editExpId=null, editTypId=null;
-let curMonth=null, reportMonth=null;
+let curMonth=null, reportMonth=null, searchQuery='';
 
 const $ = id => document.getElementById(id);
 const udb = () => rootData.userData[uid];
@@ -863,6 +879,13 @@ function createUser(){
 const RENDER_FNS={dashboard:renderDashboard,expenses:renderExpenses,report:renderReport,settings:renderSettings};
 function showPage(page){
   curPage=page;
+  // Clear search when leaving expenses page
+  if(page!=='expenses'&&searchQuery){
+    searchQuery='';
+    const si=$('expSearch'); if(si)si.value='';
+    const hdr=$('expHeader'); if(hdr)hdr.classList.remove('search-active');
+    const mpb=$('markPaidBtn'); if(mpb)mpb.style.display='';
+  }
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   const pg=$('page-'+page); if(pg)pg.classList.add('active');
@@ -1019,35 +1042,93 @@ function markAllPaid(){
 }
 
 // ── RENDER EXPENSES ───────────────────────────────────────────────────────────
+function highlight(text, q){
+  if(!q)return text;
+  const lo=text.toLowerCase(), lq=q.toLowerCase();
+  let out='', i=0;
+  while(i<text.length){
+    const j=lo.indexOf(lq,i);
+    if(j===-1){out+=text.slice(i);break;}
+    out+=text.slice(i,j)+'<mark class="search-match">'+text.slice(j,j+lq.length)+'</mark>';
+    i=j+lq.length;
+  }
+  return out;
+}
+function onSearchInput(){
+  searchQuery=$('expSearch').value.trim();
+  const hdr=$('expHeader'), mpb=$('markPaidBtn');
+  if(searchQuery){hdr.classList.add('search-active');if(mpb)mpb.style.display='none';}
+  else{hdr.classList.remove('search-active');if(mpb)mpb.style.display='';}
+  renderExpenses();
+}
+function clearSearch(){
+  $('expSearch').value=''; searchQuery='';
+  $('expHeader').classList.remove('search-active');
+  const mpb=$('markPaidBtn'); if(mpb)mpb.style.display='';
+  renderExpenses(); $('expSearch').focus();
+}
 function renderExpenses(){
   if(!uid)return;
   if(!curMonth)curMonth=todayYM();
   $('monthLabel').textContent=ymLabel(curMonth);
-  const db=udb();
+  const db=udb(), tbody=$('expTableBody'), q=searchQuery.toLowerCase();
+
+  if(q){
+    // Search mode — all months, newest first
+    const types=getTypes();
+    const rows=db.expenses.filter(e=>{
+      const tn=e.typeId?types.find(x=>x.id===e.typeId)?.name||'':'';
+      return e.desc.toLowerCase().includes(q)||tn.toLowerCase().includes(q)
+        ||fmtDate(e.date).includes(q)||e.date.includes(q)
+        ||fmtEur2(e.amount).includes(q)||fmtEur2(e.topay).includes(q);
+    }).sort((a,b)=>b.date.localeCompare(a.date));
+    const total=rows.reduce((s,e)=>s+e.topay,0);
+    $('expTableTitle').textContent='Výsledky: "'+searchQuery+'"';
+    $('expTableTotal').innerHTML=rows.length+' výsledkov | <strong>'+fmtEur2(total)+' €</strong>';
+    if(!rows.length){tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:24px;">Žiadne výsledky pre "'+searchQuery+'"</td></tr>';return;}
+    tbody.innerHTML=rows.map(e=>{
+      const tn=e.typeId?types.find(x=>x.id===e.typeId)?.name||'—':'—';
+      const divLabel=e.divisor===0?'plná':e.divisor===1?'1/1':e.divisor===2?'1/2':'1/4';
+      const monthBadge='<span class="badge" style="background:var(--surface2);color:var(--text2);font-size:0.67rem;margin-left:4px;">'+ymLabel(e.date.slice(0,7))+'</span>';
+      return '<tr class="'+(e.paid?'paid-row':'')+'">'\
+        +'<td><input type="checkbox" class="paid-check"'+(e.paid?' checked':'')+' onchange="togglePaid('+e.id+')" title="'+(e.paid?'Zaplatené':'Nezaplatené')+'"></td>'\
+        +'<td style="white-space:nowrap">'+fmtDate(e.date)+'</td>'\
+        +'<td>'+highlight(e.desc,searchQuery)+monthBadge+'</td>'\
+        +'<td class="exp-col-typ"><span class="badge badge-info">'+highlight(tn,searchQuery)+'</span></td>'\
+        +'<td class="exp-col-full">'+fmtEur2(e.amount)+' €</td>'\
+        +'<td class="exp-col-vat">'+fmtEur2(e.vat)+' €</td>'\
+        +'<td class="exp-col-div" style="font-size:0.76rem;color:var(--text3);">'+divLabel+'</td>'\
+        +'<td style="font-weight:600;color:var(--accent);white-space:nowrap">'+fmtEur2(e.topay)+' €</td>'\
+        +'<td style="white-space:nowrap"><button class="btn-icon" onclick="openEditExpense('+e.id+')" title="Upraviť">&#9998;</button> <button class="btn-icon" onclick="deleteExpense('+e.id+')" title="Odstrániť">&#128465;</button></td>'\
+        +'</tr>';
+    }).join('');
+    return;
+  }
+
+  // Normal month mode
   const rows=db.expenses.filter(e=>e.date.startsWith(curMonth)).sort((a,b)=>a.date.localeCompare(b.date));
   $('expTableTitle').textContent='Výdavky — '+ymLabel(curMonth);
   const totalToPay=rows.reduce((s,e)=>s+e.topay,0);
   const unpaid=rows.filter(e=>!e.paid).reduce((s,e)=>s+e.topay,0);
   $('expTableTotal').innerHTML='Spolu: <strong>'+fmtEur2(totalToPay)+' €</strong> | Nezaplatené: <strong style="color:var(--warn)">'+fmtEur2(unpaid)+' €</strong>';
-  const tbody=$('expTableBody');
   if(!rows.length){tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:24px;">Žiadne výdavky v tomto mesiaci</td></tr>';return;}
   tbody.innerHTML=rows.map(e=>{
     const typeName=e.typeId?getTypes().find(x=>x.id===e.typeId)?.name||'—':'—';
     const divLabel=e.divisor===0?'plná':e.divisor===1?'1/1':e.divisor===2?'1/2':'1/4';
-    const rowClass=e.paid?'paid-row':'';
-    return '<tr class="'+rowClass+'">'
-      +'<td><input type="checkbox" class="paid-check"'+(e.paid?' checked':'')+' onchange="togglePaid('+e.id+')" title="'+(e.paid?'Zaplatené':'Nezaplatené')+'"></td>'
-      +'<td style="white-space:nowrap">'+fmtDate(e.date)+'</td>'
-      +'<td>'+e.desc+'</td>'
-      +'<td class="exp-col-typ"><span class="badge badge-info">'+typeName+'</span></td>'
-      +'<td class="exp-col-full">'+fmtEur2(e.amount)+' €</td>'
-      +'<td class="exp-col-vat">'+fmtEur2(e.vat)+' €</td>'
-      +'<td class="exp-col-div" style="font-size:0.76rem;color:var(--text3);">'+divLabel+'</td>'
-      +'<td style="font-weight:600;color:var(--accent);white-space:nowrap">'+fmtEur2(e.topay)+' €</td>'
-      +'<td style="white-space:nowrap"><button class="btn-icon" onclick="openEditExpense('+e.id+')" title="Upraviť">&#9998;</button> <button class="btn-icon" onclick="deleteExpense('+e.id+')" title="Odstrániť">&#128465;</button></td>'
+    return '<tr class="'+(e.paid?'paid-row':'')+'">'\
+      +'<td><input type="checkbox" class="paid-check"'+(e.paid?' checked':'')+' onchange="togglePaid('+e.id+')" title="'+(e.paid?'Zaplatené':'Nezaplatené')+'"></td>'\
+      +'<td style="white-space:nowrap">'+fmtDate(e.date)+'</td>'\
+      +'<td>'+e.desc+'</td>'\
+      +'<td class="exp-col-typ"><span class="badge badge-info">'+typeName+'</span></td>'\
+      +'<td class="exp-col-full">'+fmtEur2(e.amount)+' €</td>'\
+      +'<td class="exp-col-vat">'+fmtEur2(e.vat)+' €</td>'\
+      +'<td class="exp-col-div" style="font-size:0.76rem;color:var(--text3);">'+divLabel+'</td>'\
+      +'<td style="font-weight:600;color:var(--accent);white-space:nowrap">'+fmtEur2(e.topay)+' €</td>'\
+      +'<td style="white-space:nowrap"><button class="btn-icon" onclick="openEditExpense('+e.id+')" title="Upraviť">&#9998;</button> <button class="btn-icon" onclick="deleteExpense('+e.id+')" title="Odstrániť">&#128465;</button></td>'\
       +'</tr>';
   }).join('');
 }
+
 
 // ── RENDER DASHBOARD ──────────────────────────────────────────────────────────
 function renderDashboard(){
