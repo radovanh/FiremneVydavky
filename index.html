@@ -1301,13 +1301,17 @@ async function init(){
 }
 init();
 
-// Register service worker for PWA
+// Register service worker for PWA (skip on preview/dev domains)
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js')
-      .then(r => console.log('SW registered:', r.scope))
-      .catch(e => console.warn('SW registration failed:', e));
-  });
+  const host = location.hostname;
+  const isProd = host.endsWith('github.io') || host.endsWith('github.com') || (host !== 'localhost' && host !== '127.0.0.1' && !host.endsWith('claudeusercontent.com'));
+  if (isProd) {
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('./sw.js')
+        .then(function(r){ console.log('SW registered:', r.scope); })
+        .catch(function(e){ console.warn('SW registration failed:', e); });
+    });
+  }
 }
 </script>
 </body>
