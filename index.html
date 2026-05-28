@@ -42,7 +42,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .nav-item.active{background:rgba(255,255,255,0.12);color:#fff;font-weight:600;border-left-color:var(--accent2);}
 .nav-item .icon{font-size:1rem;width:19px;text-align:center;}
 .sidebar-footer{padding:11px 15px;border-top:1px solid rgba(255,255,255,0.12);font-size:0.71rem;color:rgba(255,255,255,0.42);display:flex;flex-direction:column;align-items:flex-start;gap:4px;}
-.sync-dot{width:7px;height:7px;border-radius:50%;background:#6bcb77;flex-shrink:0;}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:#6bcb77;flex-shrink:0;cursor:help;}
 .sync-dot.warn{background:var(--warn);}.sync-dot.err{background:var(--accent3);}
 .main{margin-left:228px;flex:1;}
 /* TOPBAR */
@@ -288,6 +288,7 @@ tr.paid-row td:first-child{opacity:1;}
       </nav>
       <div class="sidebar-footer" style="flex-direction:column;align-items:flex-start;gap:4px">
         <div style="display:flex;align-items:center;gap:5px;width:100%"><div class="sync-dot" id="syncDot"></div><span id="syncLabel">—</span></div>
+        <div id="savedAtLabel" style="font-size:0.62rem;color:rgba(255,255,255,0.32);letter-spacing:0.01em;display:none;"></div>
         <div style="font-size:0.62rem;color:rgba(255,255,255,0.25);letter-spacing:0.03em">v0.2.0</div>
       </div>
     </aside>
@@ -414,6 +415,7 @@ tr.paid-row td:first-child{opacity:1;}
                 </div>
               </div>
               <div class="stg-panel" id="stgpanel-storage">
+                <div id="storageMeta" style="display:none;background:var(--surface2);border-radius:8px;padding:10px 13px;margin-bottom:13px;font-size:0.81rem;color:var(--text2);line-height:1.7;"></div>
                 <div class="stg-section">
                   <div style="background:var(--surface2);border-radius:8px;padding:5px;display:flex;gap:4px;margin-bottom:14px;">
                     <button id="stab-gh" onclick="switchStab('gh')" style="flex:1;padding:7px;border:none;border-radius:5px;font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:700;background:var(--surface);box-shadow:0 1px 4px rgba(0,0,0,0.08);">GitHub</button>
@@ -495,6 +497,7 @@ tr.paid-row td:first-child{opacity:1;}
     </div>
     <div style="padding:10px 14px;border-top:1px solid rgba(255,255,255,0.12);display:flex;flex-direction:column;gap:4px;">
       <div style="display:flex;align-items:center;gap:6px;"><div class="sync-dot" id="syncDot2"></div><span id="syncLabel2" style="font-size:0.72rem;color:rgba(255,255,255,0.5);">—</span></div>
+      <div id="savedAtLabel2" style="font-size:0.62rem;color:rgba(255,255,255,0.32);letter-spacing:0.01em;display:none;"></div>
       <div style="font-size:0.62rem;color:rgba(255,255,255,0.22);letter-spacing:0.03em">v0.2.0</div>
     </div>
   </div>
@@ -664,7 +667,7 @@ const DEFAULT_TYPES = [
 let ghCfg=null, gdCfg=null, gdToken=null, gdFileId=null, gdUser=null;
 let rootData=null, uid=null, curPage='dashboard', saveTimer=null;
 let editExpId=null, editTypId=null;
-let curMonth=null, reportMonth=null, searchQuery='', typeOverviewFilter='year';
+let curMonth=null, reportMonth=null, searchQuery='', typeOverviewFilter='year', loadedAt=null;
 
 const $ = id => document.getElementById(id);
 const udb = () => rootData.userData[uid];
@@ -838,25 +841,88 @@ async function loadData(){
   const gdCache=JSON.parse(localStorage.getItem('vydavky_gd_token')||'null');
   if(gdCache?.expires>Date.now()){gdToken=gdCache.token;gdFileId=gdCache.fileId;gdUser=gdCache.user;}
   try{
-    if(IS_LOCAL){const r=await fetch('data.json?t='+Date.now());if(r.ok){rootData=await r.json();return;}}
-    if(gdToken){const raw=await gdReadFile();if(raw){rootData=raw;return;}}
-    if(ghCfg?.token){const raw=await ghGet();if(raw){rootData=raw;return;}}
+    if(IS_LOCAL){const r=await fetch('data.json?t='+Date.now());if(r.ok){rootData=await r.json();loadedAt=new Date().toISOString();return;}}
+    if(gdToken){const raw=await gdReadFile();if(raw){rootData=raw;loadedAt=new Date().toISOString();return;}}
+    if(ghCfg?.token){const raw=await ghGet();if(raw){rootData=raw;loadedAt=new Date().toISOString();return;}}
   }catch(e){console.warn('Remote load failed',e);}
   const ls=localStorage.getItem(LS_KEY);
   rootData=ls?JSON.parse(ls):emptyRoot();
+  loadedAt=new Date().toISOString();
   if(!rootData.users)rootData.users=[];
   if(!rootData.userData)rootData.userData={};
 }
 async function saveData(){
+  var _metaUser=uid?rootData.users&&rootData.users.find(function(x){return x.id===uid;}):null;
+  rootData._meta={
+    savedAt: new Date().toISOString(),
+    savedBy: uid||'',
+    userName: _metaUser?_metaUser.name:'',
+    source: mode()==='github'?'GitHub':mode()==='gdrive'?'Google Drive':mode()==='local'?'Local':'localStorage'
+  };
+  rootData._savedAt=rootData._meta.savedAt;
   localStorage.setItem(LS_KEY,JSON.stringify(rootData));
   setSyncStatus('saving');
   try{
-    if(mode()==='local'){const r=await fetch('/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(rootData)});if(r.ok){setSyncStatus('ok','Uložené lokálne');return;}throw new Error('Server '+r.status);}
-    if(mode()==='gdrive'){await gdWriteFile(rootData);setSyncStatus('ok','Google Drive');return;}
-    if(mode()==='github'){await ghPut(rootData);setSyncStatus('ok','GitHub');return;}
-    setSyncStatus('warn','Len localStorage');
+    if(mode()==='local'){const r=await fetch('/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(rootData)});if(r.ok){setSyncStatus('ok','Uložené lokálne');updateSavedAtLabel();return;}throw new Error('Server '+r.status);}
+    if(mode()==='gdrive'){await gdWriteFile(rootData);setSyncStatus('ok','Google Drive');updateSavedAtLabel();return;}
+    if(mode()==='github'){await ghPut(rootData);setSyncStatus('ok','GitHub');updateSavedAtLabel();return;}
+    setSyncStatus('warn','Len localStorage');updateSavedAtLabel();
   }catch(e){setSyncStatus('err','Chyba: '+e.message.slice(0,50));console.error(e);}
 }
+function fmtTs(iso, withSec){
+  if(!iso) return '';
+  var d=new Date(iso);
+  var p=function(n){return String(n).padStart(2,'0');};
+  var date=d.getDate()+'.'+p(d.getMonth()+1)+'.'+d.getFullYear();
+  var time=p(d.getHours())+':'+p(d.getMinutes())+(withSec?':'+p(d.getSeconds()):'');
+  return date+' '+time;
+}
+function fmtRelative(iso){
+  if(!iso) return '';
+  var diff=Math.floor((Date.now()-new Date(iso).getTime())/1000);
+  if(diff<5)   return 'práve teraz';
+  if(diff<60)  return 'pred '+diff+' s';
+  var mins=Math.floor(diff/60);
+  if(mins<60)  return 'pred '+mins+' min';
+  var hrs=Math.floor(mins/60);
+  if(hrs<24)   return 'pred '+hrs+' hod';
+  return fmtTs(iso, false);
+}
+function updateSavedAtLabel(){
+  var meta=rootData&&rootData._meta?rootData._meta:null;
+  var iso=meta?meta.savedAt:(rootData&&rootData._savedAt?rootData._savedAt:'');
+  if(!iso){
+    ['savedAtLabel','savedAtLabel2'].forEach(function(id){var el=$(id);if(el){el.style.display='none';}});
+    return;
+  }
+  var who=meta&&meta.userName?meta.userName:'';
+  var txt='💾 '+fmtTs(iso,false)+(who?' — '+who:'');
+  var tooltip='💾 Uložené: '+fmtTs(iso,true)+(who?' od '+who:'');
+  ['savedAtLabel','savedAtLabel2'].forEach(function(id){
+    var el=$(id);
+    if(el){el.textContent=txt;el.title=tooltip;el.style.display='';}
+  });
+  ['syncDot','syncDot2'].forEach(function(id){var el=$(id);if(el)el.title=tooltip;});
+  renderStorageMeta();
+}
+function renderStorageMeta(){
+  var el=$('storageMeta');
+  if(!el) return;
+  var meta=rootData&&rootData._meta?rootData._meta:null;
+  var savedIso=meta?meta.savedAt:(rootData&&rootData._savedAt?rootData._savedAt:'');
+  var who=meta&&meta.userName?meta.userName:'';
+  var src=meta&&meta.source?meta.source:'';
+  var savedLine=savedIso
+    ? '💾 Uložené: '+fmtTs(savedIso,false)+(who?' — '+who:'')+(src?' ('+src+')':'')
+    : '';
+  var loadLine=loadedAt
+    ? '📥 Načítané: '+fmtRelative(loadedAt)+' ('+fmtTs(loadedAt,true)+')'
+    : '';
+  el.innerHTML=(loadLine?'<div>'+loadLine+'</div>':'')+
+               (savedLine?'<div style="margin-top:3px;">'+savedLine+'</div>':'');
+  el.style.display=(loadLine||savedLine)?'':'none';
+}
+
 function setSyncStatus(state,label){
   const dot=$('syncDot'),lbl=$('syncLabel');
   if(dot){dot.className='sync-dot'+(state==='warn'?' warn':state==='err'?' err':'');lbl.innerHTML=state==='saving'?'<span class="spinner"></span>':(label||'—');}
@@ -899,6 +965,7 @@ function selectUser(id){
   syncMobileUser();
   const m=mode();
   setSyncStatus(m==='ls'?'warn':'ok',m==='local'?'Lokálny server':m==='gdrive'?'Google Drive':m==='github'?'GitHub':'localStorage');
+  updateSavedAtLabel();
   showPage('dashboard');
 }
 function switchUser(){$('appMain').classList.remove('visible');$('userScreen').style.display='flex';renderUserScreen();}
