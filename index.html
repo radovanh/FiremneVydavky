@@ -141,6 +141,20 @@ tr.paid-row td:first-child{opacity:1;}
 .paid-check{width:17px;height:17px;cursor:pointer;accent-color:var(--accent);}
 /* REPORT TOTAL ROW */
 .report-total{font-weight:700;background:var(--surface2)!important;}
+/* TYPE OVERVIEW */
+.year-tabs{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:0;}
+.year-tab{padding:5px 12px;border-radius:20px;font-size:0.78rem;font-weight:500;border:1px solid var(--border);background:var(--surface);cursor:pointer;color:var(--text2);transition:all 0.13s;}
+.year-tab:hover{border-color:var(--accent);color:var(--accent);}
+.year-tab.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.year-tab.custom-tab{font-style:normal;}
+.custom-range{display:none;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px;}
+.custom-range.open{display:flex;}
+.custom-range label{font-size:0.78rem;font-weight:600;color:var(--text2);}
+.custom-range input{padding:5px 9px;border:1px solid var(--border);border-radius:7px;font-size:0.82rem;font-family:inherit;background:var(--surface);color:var(--text);outline:none;}
+.custom-range input:focus{border-color:var(--accent);}
+.type-bar-wrap{display:flex;align-items:center;gap:8px;margin-top:3px;}
+.type-bar{height:6px;border-radius:3px;background:var(--accent);min-width:2px;transition:width 0.3s;}
+.type-total-row{font-weight:700;background:var(--surface2)!important;}
 /* SEARCH */
 .search-wrap{position:relative;flex:1;min-width:180px;max-width:340px;}
 .search-wrap input{width:100%;padding:7px 32px 7px 32px;border:1px solid var(--border);border-radius:20px;font-family:'DM Sans',sans-serif;font-size:0.84rem;background:var(--surface);color:var(--text);outline:none;transition:border-color 0.15s,box-shadow 0.15s;}
@@ -292,6 +306,37 @@ tr.paid-row td:first-child{opacity:1;}
         <div class="page active" id="page-dashboard">
           <div class="stats-grid" id="dashStats"></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;" id="dashCards"></div>
+          <div style="margin-top:16px;" id="typeOverviewSection">
+            <div class="card">
+              <div class="card-header" style="flex-direction:column;align-items:flex-start;gap:10px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;width:100%;">
+                  <h3>Prehľad podľa typu</h3>
+                  <span id="typeOverviewTotal" style="font-size:0.82rem;color:var(--text2);"></span>
+                </div>
+                <div class="year-tabs" id="yearTabs"></div>
+                <div class="custom-range" id="customRange">
+                  <label>Od:</label>
+                  <input type="date" id="rangeFrom" onchange="renderTypeOverview()">
+                  <label>Do:</label>
+                  <input type="date" id="rangeTo" onchange="renderTypeOverview()">
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Typ</th>
+                      <th>Počet</th>
+                      <th>Plná suma</th>
+                      <th>K úhrade</th>
+                      <th style="width:140px"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="typeOverviewBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- EXPENSES -->
@@ -618,7 +663,7 @@ const DEFAULT_TYPES = [
 let ghCfg=null, gdCfg=null, gdToken=null, gdFileId=null, gdUser=null;
 let rootData=null, uid=null, curPage='dashboard', saveTimer=null;
 let editExpId=null, editTypId=null;
-let curMonth=null, reportMonth=null, searchQuery='';
+let curMonth=null, reportMonth=null, searchQuery='', typeOverviewFilter='year';
 
 const $ = id => document.getElementById(id);
 const udb = () => rootData.userData[uid];
@@ -1165,6 +1210,12 @@ function renderDashboard(){
   });
   const typeEntries=Object.entries(typeMap).sort((a,b)=>b[1].topay-a[1].topay);
 
+  // Default to current year on first load
+  if(typeOverviewFilter==='year'){
+    typeOverviewFilter = new Date().getFullYear().toString();
+  }
+  buildYearTabs();
+  renderTypeOverview();
   $('dashCards').innerHTML=
     '<div class="card"><div class="card-header"><h3>Prehľad mesiacov</h3></div><div class="table-wrap"><table>'
     +'<thead><tr><th>Mesiac</th><th>Výdavky</th><th>K úhrade</th><th>Nezaplatené</th><th></th></tr></thead><tbody>'
@@ -1182,6 +1233,120 @@ function renderDashboard(){
     +(typeEntries.length?typeEntries.map(([k,v])=>'<tr><td>'+k+'</td><td>'+v.cnt+'</td><td>'+fmtEur2(v.topay)+' €</td></tr>').join(''):'<tr><td colspan="3" style="text-align:center;color:var(--text3);padding:16px;">Žiadne výdavky</td></tr>')
     +'</tbody></table></div></div>';
 }
+
+// ── TYPE OVERVIEW ─────────────────────────────────────────────────────────────
+function buildYearTabs(){
+  const tabs = $('yearTabs');
+  if(!tabs) return;
+  const db = udb();
+  const years = Array.from(new Set(db.expenses.map(function(e){return e.date.slice(0,4);}))).sort().reverse();
+  const btns = years.map(function(y){
+    return '<button class="year-tab" data-y="'+y+'" onclick="setTypeFilter(this.dataset.y)">'+y+'</button>';
+  });
+  btns.push('<button class="year-tab" data-y="all" onclick="setTypeFilter(this.dataset.y)">Všetko</button>');
+  btns.push('<button class="year-tab custom-tab" data-y="custom" onclick="setTypeFilter(this.dataset.y)">Vlastný rozsah…</button>');
+  tabs.innerHTML = btns.join('');
+  applyYearTabActive();
+}
+
+function applyYearTabActive(){
+  const tabs = $('yearTabs');
+  if(!tabs) return;
+  tabs.querySelectorAll('.year-tab').forEach(function(b){
+    b.classList.remove('active');
+    if(typeOverviewFilter==='all' && b.textContent==='Všetko') b.classList.add('active');
+    else if(typeOverviewFilter==='custom' && b.classList.contains('custom-tab')) b.classList.add('active');
+    else if(b.dataset.y && b.dataset.y===typeOverviewFilter) b.classList.add('active');
+  });
+  const cr = $('customRange');
+  if(cr) cr.classList.toggle('open', typeOverviewFilter==='custom');
+}
+
+function setTypeFilter(mode){
+  typeOverviewFilter = mode;
+  applyYearTabActive();
+  if(mode==='custom'){
+    const cr=$('customRange'); if(cr) cr.classList.add('open');
+    return;
+  }
+  renderTypeOverview();
+}
+
+function renderTypeOverview(){
+  const body = $('typeOverviewBody');
+  const totEl = $('typeOverviewTotal');
+  if(!body || !uid) return;
+  const db = udb();
+  const types = getTypes();
+
+  // Determine date range
+  let rows;
+  if(typeOverviewFilter==='all'){
+    rows = db.expenses;
+  } else if(typeOverviewFilter==='custom'){
+    const from = $('rangeFrom') ? $('rangeFrom').value : '';
+    const to   = $('rangeTo')   ? $('rangeTo').value   : '';
+    rows = db.expenses.filter(function(e){
+      return (!from || e.date >= from) && (!to || e.date <= to);
+    });
+  } else {
+    // year string e.g. "2025"
+    rows = db.expenses.filter(function(e){ return e.date.startsWith(typeOverviewFilter); });
+  }
+
+  // Aggregate by type
+  const map = {};
+  rows.forEach(function(e){
+    const key = e.typeId ? (types.find(function(x){return x.id===e.typeId;})||{name:'Iné'}).name : 'Iné';
+    if(!map[key]) map[key]={cnt:0,amount:0,topay:0};
+    map[key].cnt++;
+    map[key].amount += e.amount;
+    map[key].topay  += e.topay;
+  });
+
+  const entries = Object.entries(map).sort(function(a,b){return b[1].topay-a[1].topay;});
+  const grandTotal = entries.reduce(function(s,x){return s+x[1].topay;},0);
+  const grandAmount = entries.reduce(function(s,x){return s+x[1].amount;},0);
+  const maxTopay = entries.length ? entries[0][1].topay : 1;
+
+  if(totEl){
+    const label = typeOverviewFilter==='all'?'Celkom'
+      : typeOverviewFilter==='custom'?'Vlastný rozsah'
+      : typeOverviewFilter;
+    totEl.innerHTML = label+': <strong>'+fmtEur2(grandTotal)+' €</strong>';
+  }
+
+  if(!entries.length){
+    body.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px;">Žiadne výdavky v zvolenom období</td></tr>';
+    return;
+  }
+
+  const COLORS=['#2c5f4a','#4a7fc0','#d4a847','#c0392b','#8e44ad','#16a085','#e67e22','#2980b9','#7f8c8d'];
+  let html = '';
+  entries.forEach(function(entry, i){
+    const k=entry[0], v=entry[1];
+    const pct = maxTopay>0 ? Math.round(v.topay/maxTopay*100) : 0;
+    const color = COLORS[i % COLORS.length];
+    html += '<tr>'
+      +'<td style="font-weight:500;">'+k+'</td>'
+      +'<td>'+v.cnt+'</td>'
+      +'<td>'+fmtEur2(v.amount)+' €</td>'
+      +'<td style="font-weight:600;color:var(--accent);">'+fmtEur2(v.topay)+' €</td>'
+      +'<td><div class="type-bar-wrap"><div class="type-bar" style="width:'+pct+'%;background:'+color+';"></div>'
+        +'<span style="font-size:0.72rem;color:var(--text3);white-space:nowrap;">'+Math.round(v.topay/grandTotal*100)+'%</span>'
+      +'</div></td>'
+      +'</tr>';
+  });
+  html += '<tr class="type-total-row">'
+    +'<td style="font-weight:700;">SPOLU</td>'
+    +'<td>'+rows.length+'</td>'
+    +'<td>'+fmtEur2(grandAmount)+' €</td>'
+    +'<td style="font-weight:700;color:var(--accent);">'+fmtEur2(grandTotal)+' €</td>'
+    +'<td></td>'
+    +'</tr>';
+  body.innerHTML = html;
+}
+
 
 // ── RENDER REPORT ─────────────────────────────────────────────────────────────
 function renderReport(){
