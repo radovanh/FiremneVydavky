@@ -891,18 +891,28 @@ function fmtRelative(iso){
 function updateSavedAtLabel(){
   var meta=rootData&&rootData._meta?rootData._meta:null;
   var iso=meta?meta.savedAt:(rootData&&rootData._savedAt?rootData._savedAt:'');
-  if(!iso){
-    ['savedAtLabel','savedAtLabel2'].forEach(function(id){var el=$(id);if(el){el.style.display='none';}});
-    return;
-  }
   var who=meta&&meta.userName?meta.userName:'';
-  var txt='💾 '+fmtTs(iso,false)+(who?' — '+who:'');
-  var tooltip='💾 Uložené: '+fmtTs(iso,true)+(who?' od '+who:'');
-  ['savedAtLabel','savedAtLabel2'].forEach(function(id){
-    var el=$(id);
-    if(el){el.textContent=txt;el.title=tooltip;el.style.display='';}
+
+  // Build sidebar label (only when savedAt exists)
+  if(iso){
+    var txt='💾 '+fmtTs(iso,false)+(who?' — '+who:'');
+    ['savedAtLabel','savedAtLabel2'].forEach(function(id){
+      var el=$(id);
+      if(el){el.textContent=txt;el.style.display='';}
+    });
+  } else {
+    ['savedAtLabel','savedAtLabel2'].forEach(function(id){var el=$(id);if(el)el.style.display='none';});
+  }
+
+  // Build dot tooltip — always show both loaded and saved info
+  var lines=[];
+  if(loadedAt) lines.push('📥 Načítané: '+fmtRelative(loadedAt)+' ('+fmtTs(loadedAt,true)+')');
+  if(iso)      lines.push('💾 Uložené: '+fmtTs(iso,true)+(who?' od '+who:''));
+  var tooltip=lines.length?lines.join('\n'):'';
+  ['syncDot','syncDot2','savedAtLabel','savedAtLabel2'].forEach(function(id){
+    var el=$(id); if(el&&tooltip) el.title=tooltip;
   });
-  ['syncDot','syncDot2'].forEach(function(id){var el=$(id);if(el)el.title=tooltip;});
+
   renderStorageMeta();
 }
 function renderStorageMeta(){
