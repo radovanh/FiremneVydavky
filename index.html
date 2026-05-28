@@ -288,7 +288,7 @@ tr.paid-row td:first-child{opacity:1;}
       </nav>
       <div class="sidebar-footer" style="flex-direction:column;align-items:flex-start;gap:4px">
         <div style="display:flex;align-items:center;gap:5px;width:100%"><div class="sync-dot" id="syncDot"></div><span id="syncLabel">—</span></div>
-        <div style="font-size:0.62rem;color:rgba(255,255,255,0.25);letter-spacing:0.03em">v0.1.0</div>
+        <div style="font-size:0.62rem;color:rgba(255,255,255,0.25);letter-spacing:0.03em">v0.2.0</div>
       </div>
     </aside>
 
@@ -493,8 +493,9 @@ tr.paid-row td:first-child{opacity:1;}
       <div class="mob-nav-item" data-page="report" onclick="showPage('report');closeMobMenu()"><span>📋</span> Vyúčtovanie</div>
       <div class="mob-nav-item" data-page="settings" onclick="showPage('settings');closeMobMenu()"><span>⚙️</span> Nastavenia</div>
     </div>
-    <div style="padding:10px 14px;border-top:1px solid rgba(255,255,255,0.12);display:flex;align-items:center;gap:6px;">
-      <div class="sync-dot" id="syncDot2"></div><span id="syncLabel2" style="font-size:0.72rem;color:rgba(255,255,255,0.5);">—</span>
+    <div style="padding:10px 14px;border-top:1px solid rgba(255,255,255,0.12);display:flex;flex-direction:column;gap:4px;">
+      <div style="display:flex;align-items:center;gap:6px;"><div class="sync-dot" id="syncDot2"></div><span id="syncLabel2" style="font-size:0.72rem;color:rgba(255,255,255,0.5);">—</span></div>
+      <div style="font-size:0.62rem;color:rgba(255,255,255,0.22);letter-spacing:0.03em">v0.2.0</div>
     </div>
   </div>
   <nav class="mob-bottom-nav">
@@ -712,7 +713,10 @@ async function ghGet(){
   if(r.status===403)throw new Error('Prístup zamietnutý (403)');
   if(!r.ok)throw new Error('GitHub GET: HTTP '+r.status);
   const j=await r.json();
-  const d=JSON.parse(atob(j.content.replace(/\n/g,'')));
+  // Decode base64 as UTF-8 (atob returns latin-1 which corrupts Slovak chars)
+  const b64=j.content.replace(/\n/g,'');
+  const bytes=Uint8Array.from(atob(b64),function(c){return c.charCodeAt(0);});
+  const d=JSON.parse(new TextDecoder('utf-8').decode(bytes));
   d._sha=j.sha; return d;
 }
 async function ghPut(data){
@@ -1472,9 +1476,25 @@ if ('serviceWorker' in navigator) {
   const isProd = host.endsWith('github.io') || host.endsWith('github.com') || (host !== 'localhost' && host !== '127.0.0.1' && !host.endsWith('claudeusercontent.com'));
   if (isProd) {
     window.addEventListener('load', function(){
-      navigator.serviceWorker.register('./sw.js')
-        .then(function(r){ console.log('SW registered:', r.scope); })
+      navigator.serviceWorker.register('./sw.js?v=2')
+        .then(function(r){
+          console.log('SW registered:', r.scope);
+          // Check for waiting SW and activate it immediately
+          if (r.waiting) r.waiting.postMessage({type:'SKIP_WAITING'});
+          r.addEventListener('updatefound', function(){
+            const nw = r.installing;
+            nw.addEventListener('statechange', function(){
+              if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+                nw.postMessage({type:'SKIP_WAITING'});
+              }
+            });
+          });
+        })
         .catch(function(e){ console.warn('SW registration failed:', e); });
+      // When SW takes control, reload to get fresh content
+      navigator.serviceWorker.addEventListener('controllerchange', function(){
+        window.location.reload();
+      });
     });
   }
 }
