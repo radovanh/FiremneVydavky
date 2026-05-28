@@ -290,7 +290,6 @@ tr.paid-row td:first-child{opacity:1;}
         <div id="syncFooterRow" onclick="toggleSyncPopup()" style="display:flex;align-items:center;gap:5px;width:100%;cursor:pointer;border-radius:5px;padding:2px 4px;transition:background 0.13s" title="Kliknite pre detail synchronizácie">
           <div class="sync-dot" id="syncDot"></div>
           <span id="syncLabel" style="flex:1">—</span>
-          <span style="font-size:0.68rem;opacity:0.5">ⓘ</span>
         </div>
         <div id="syncPopup" style="display:none;background:rgba(0,0,0,0.35);border-radius:7px;padding:8px 10px;font-size:0.72rem;color:rgba(255,255,255,0.8);line-height:1.6;width:100%">
           <div id="syncPopupContent">—</div>
@@ -936,8 +935,10 @@ function toggleSyncPopup(){
 function updateSyncFooter(){
   var s=JSON.parse(localStorage.getItem('vydavky_sync')||'null');
   if(!s) return;
-  var lbl=$('syncLabel'); if(lbl) lbl.textContent=_lastSyncLabel;
-  var lbl2=$('syncLabel2'); if(lbl2) lbl2.textContent=_lastSyncLabel;
+  // Strip leading emoji (📥 or 💾) from the footer label — dot already serves as indicator
+  var clean=_lastSyncLabel.replace(/^[\uD83C-\uDBFF][\uDC00-\uDFFF]\s*/,'').replace(/^[\u2600-\u27BF]\s*/,'');
+  var lbl=$('syncLabel'); if(lbl) lbl.textContent=clean;
+  var lbl2=$('syncLabel2'); if(lbl2) lbl2.textContent=clean;
 }
 function renderStorageMeta(){
   var el=$('storageMeta'); if(!el) return;
