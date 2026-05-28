@@ -1016,6 +1016,7 @@ function showSettingsTab(tab){
   document.querySelectorAll('.stg-panel').forEach(p=>p.classList.remove('active'));
   const t=$('stgtab-'+tab); if(t)t.classList.add('active');
   const p=$('stgpanel-'+tab); if(p)p.classList.add('active');
+  if(tab==='storage') renderStorageMeta();
 }
 
 // ── EXPENSE TYPES ─────────────────────────────────────────────────────────────
@@ -1455,6 +1456,7 @@ function renderSettings(){
     if($('gh_token'))$('gh_token').value=ghCfg.token||'';
   }
   gdUpdateUI();
+  renderStorageMeta();
 }
 
 // ── EXPORT/IMPORT ─────────────────────────────────────────────────────────────
