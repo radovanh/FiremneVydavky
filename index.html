@@ -287,8 +287,14 @@ tr.paid-row td:first-child{opacity:1;}
         <div class="nav-item" onclick="showPage('settings')" data-page="settings"><span class="icon">⚙️</span> Nastavenia</div>
       </nav>
       <div class="sidebar-footer" style="flex-direction:column;align-items:flex-start;gap:4px">
-        <div style="display:flex;align-items:center;gap:5px;width:100%"><div class="sync-dot" id="syncDot"></div><span id="syncLabel">—</span></div>
-        <div id="savedAtLabel" style="font-size:0.62rem;color:rgba(255,255,255,0.32);letter-spacing:0.01em;display:none;"></div>
+        <div id="syncFooterRow" onclick="toggleSyncPopup()" style="display:flex;align-items:center;gap:5px;width:100%;cursor:pointer;border-radius:5px;padding:2px 4px;transition:background 0.13s" title="Kliknite pre detail synchronizácie">
+          <div class="sync-dot" id="syncDot"></div>
+          <span id="syncLabel" style="flex:1">—</span>
+          <span style="font-size:0.68rem;opacity:0.5">ⓘ</span>
+        </div>
+        <div id="syncPopup" style="display:none;background:rgba(0,0,0,0.35);border-radius:7px;padding:8px 10px;font-size:0.72rem;color:rgba(255,255,255,0.8);line-height:1.6;width:100%">
+          <div id="syncPopupContent">—</div>
+        </div>
         <div style="font-size:0.62rem;color:rgba(255,255,255,0.25);letter-spacing:0.03em">v0.2.0</div>
       </div>
     </aside>
@@ -496,8 +502,7 @@ tr.paid-row td:first-child{opacity:1;}
       <div class="mob-nav-item" data-page="settings" onclick="showPage('settings');closeMobMenu()"><span>⚙️</span> Nastavenia</div>
     </div>
     <div style="padding:10px 14px;border-top:1px solid rgba(255,255,255,0.12);display:flex;flex-direction:column;gap:4px;">
-      <div style="display:flex;align-items:center;gap:6px;"><div class="sync-dot" id="syncDot2"></div><span id="syncLabel2" style="font-size:0.72rem;color:rgba(255,255,255,0.5);">—</span></div>
-      <div id="savedAtLabel2" style="font-size:0.62rem;color:rgba(255,255,255,0.32);letter-spacing:0.01em;display:none;"></div>
+      <div style="display:flex;align-items:center;gap:5px;"><div class="sync-dot" id="syncDot2"></div><span id="syncLabel2" style="flex:1;font-size:0.72rem;color:rgba(255,255,255,0.5);">—</span></div>
       <div style="font-size:0.62rem;color:rgba(255,255,255,0.22);letter-spacing:0.03em">v0.2.0</div>
     </div>
   </div>
@@ -667,7 +672,7 @@ const DEFAULT_TYPES = [
 let ghCfg=null, gdCfg=null, gdToken=null, gdFileId=null, gdUser=null;
 let rootData=null, uid=null, curPage='dashboard', saveTimer=null;
 let editExpId=null, editTypId=null;
-let curMonth=null, reportMonth=null, searchQuery='', typeOverviewFilter='year', loadedAt=null;
+let curMonth=null, reportMonth=null, searchQuery='', typeOverviewFilter='year', loadedAt=null, _lastSyncLabel='';
 
 const $ = id => document.getElementById(id);
 const udb = () => rootData.userData[uid];
@@ -841,13 +846,14 @@ async function loadData(){
   const gdCache=JSON.parse(localStorage.getItem('vydavky_gd_token')||'null');
   if(gdCache?.expires>Date.now()){gdToken=gdCache.token;gdFileId=gdCache.fileId;gdUser=gdCache.user;}
   try{
-    if(IS_LOCAL){const r=await fetch('data.json?t='+Date.now());if(r.ok){rootData=await r.json();loadedAt=new Date().toISOString();return;}}
-    if(gdToken){const raw=await gdReadFile();if(raw){rootData=raw;loadedAt=new Date().toISOString();return;}}
-    if(ghCfg?.token){const raw=await ghGet();if(raw){rootData=raw;loadedAt=new Date().toISOString();return;}}
+    if(IS_LOCAL){const r=await fetch('data.json?t='+Date.now());if(r.ok){rootData=await r.json();loadedAt=new Date().toISOString();recordSyncFromMeta('Lokálny server');return;}}
+    if(gdToken){const raw=await gdReadFile();if(raw){rootData=raw;loadedAt=new Date().toISOString();recordSyncFromMeta('Google Drive');return;}}
+    if(ghCfg?.token){const raw=await ghGet();if(raw){rootData=raw;loadedAt=new Date().toISOString();recordSyncFromMeta('GitHub');return;}}
   }catch(e){console.warn('Remote load failed',e);}
   const ls=localStorage.getItem(LS_KEY);
   rootData=ls?JSON.parse(ls):emptyRoot();
   loadedAt=new Date().toISOString();
+  recordSyncFromMeta('localStorage');
   if(!rootData.users)rootData.users=[];
   if(!rootData.userData)rootData.userData={};
 }
@@ -863,75 +869,90 @@ async function saveData(){
   localStorage.setItem(LS_KEY,JSON.stringify(rootData));
   setSyncStatus('saving');
   try{
-    if(mode()==='local'){const r=await fetch('/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(rootData)});if(r.ok){setSyncStatus('ok','Uložené lokálne');updateSavedAtLabel();return;}throw new Error('Server '+r.status);}
-    if(mode()==='gdrive'){await gdWriteFile(rootData);setSyncStatus('ok','Google Drive');updateSavedAtLabel();return;}
-    if(mode()==='github'){await ghPut(rootData);setSyncStatus('ok','GitHub');updateSavedAtLabel();return;}
-    setSyncStatus('warn','Len localStorage');updateSavedAtLabel();
+    if(mode()==='local'){const r=await fetch('/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(rootData)});if(r.ok){recordSync('save','Lokálny server');return;}throw new Error('Server '+r.status);}
+    if(mode()==='gdrive'){await gdWriteFile(rootData);recordSync('save','Google Drive');return;}
+    if(mode()==='github'){await ghPut(rootData);recordSync('save','GitHub');return;}
+    setSyncStatus('warn','Len localStorage');updateSyncFooter();
   }catch(e){setSyncStatus('err','Chyba: '+e.message.slice(0,50));console.error(e);}
 }
-function fmtTs(iso, withSec){
-  if(!iso) return '';
-  var d=new Date(iso);
-  var p=function(n){return String(n).padStart(2,'0');};
-  var date=d.getDate()+'.'+p(d.getMonth()+1)+'.'+d.getFullYear();
-  var time=p(d.getHours())+':'+p(d.getMinutes())+(withSec?':'+p(d.getSeconds()):'');
-  return date+' '+time;
-}
-function fmtRelative(iso){
-  if(!iso) return '';
+function formatTimeAgo(iso){
   var diff=Math.floor((Date.now()-new Date(iso).getTime())/1000);
-  if(diff<5)   return 'práve teraz';
-  if(diff<60)  return 'pred '+diff+' s';
-  var mins=Math.floor(diff/60);
-  if(mins<60)  return 'pred '+mins+' min';
-  var hrs=Math.floor(mins/60);
-  if(hrs<24)   return 'pred '+hrs+' hod';
-  return fmtTs(iso, false);
+  if(diff<60)   return 'pred '+diff+'s';
+  if(diff<3600) return 'pred '+Math.floor(diff/60)+' min';
+  if(diff<86400)return 'pred '+Math.floor(diff/3600)+' h';
+  return new Date(iso).toLocaleDateString('sk-SK');
 }
-function updateSavedAtLabel(){
+function recordSyncFromMeta(loadSource){
   var meta=rootData&&rootData._meta?rootData._meta:null;
-  var iso=meta?meta.savedAt:(rootData&&rootData._savedAt?rootData._savedAt:'');
-  var who=meta&&meta.userName?meta.userName:'';
-
-  // Build sidebar label (only when savedAt exists)
-  if(iso){
-    var txt='💾 '+fmtTs(iso,false)+(who?' — '+who:'');
-    ['savedAtLabel','savedAtLabel2'].forEach(function(id){
-      var el=$(id);
-      if(el){el.textContent=txt;el.style.display='';}
-    });
+  if(meta&&meta.savedAt){
+    var sd=new Date(meta.savedAt);
+    var st=sd.toLocaleTimeString('sk-SK',{hour:'2-digit',minute:'2-digit'});
+    var sd2=sd.toLocaleDateString('sk-SK',{day:'2-digit',month:'2-digit'});
+    var by=meta.userName&&meta.userName!='?'?' ('+meta.userName+')':'';
+    _lastSyncLabel='📥 '+loadSource+' · uložené '+sd2+' '+st+by;
   } else {
-    ['savedAtLabel','savedAtLabel2'].forEach(function(id){var el=$(id);if(el)el.style.display='none';});
+    _lastSyncLabel='📥 '+loadSource;
   }
-
-  // Build dot tooltip — always show both loaded and saved info
-  var lines=[];
-  if(loadedAt) lines.push('📥 Načítané: '+fmtRelative(loadedAt)+' ('+fmtTs(loadedAt,true)+')');
-  if(iso)      lines.push('💾 Uložené: '+fmtTs(iso,true)+(who?' od '+who:''));
-  var tooltip=lines.length?lines.join('\n'):'';
-  ['syncDot','syncDot2','savedAtLabel','savedAtLabel2'].forEach(function(id){
-    var el=$(id); if(el&&tooltip) el.title=tooltip;
-  });
-
-  renderStorageMeta();
+  var now=new Date();
+  localStorage.setItem('vydavky_sync',JSON.stringify({
+    label:_lastSyncLabel, iso:now.toISOString(),
+    savedAt:meta&&meta.savedAt?meta.savedAt:null,
+    savedBy:meta&&meta.userName?meta.userName:null
+  }));
+  setSyncStatus('ok',_lastSyncLabel);
+  updateSyncFooter();
+}
+function recordSync(type, source){
+  var now=new Date();
+  var time=now.toLocaleTimeString('sk-SK',{hour:'2-digit',minute:'2-digit'});
+  _lastSyncLabel=(type==='save'?'💾 ':'📥 ')+source+' '+time;
+  localStorage.setItem('vydavky_sync',JSON.stringify({label:_lastSyncLabel,iso:now.toISOString()}));
+  setSyncStatus('ok',_lastSyncLabel);
+  updateSyncFooter();
+}
+function loadSyncRecord(){
+  var s=JSON.parse(localStorage.getItem('vydavky_sync')||'null');
+  if(s) _lastSyncLabel=s.label;
+  return s;
+}
+function toggleSyncPopup(){
+  var popup=$('syncPopup'); if(!popup) return;
+  var isOpen=popup.style.display!=='none';
+  popup.style.display=isOpen?'none':'block';
+  if(!isOpen){
+    var s=JSON.parse(localStorage.getItem('vydavky_sync')||'null');
+    var meta=rootData&&rootData._meta?rootData._meta:null;
+    var lines=[];
+    if(s&&s.iso) lines.push('📥 Načítané: '+new Date(s.iso).toLocaleString('sk-SK'));
+    if(meta&&meta.savedAt){
+      var by2=meta.userName&&meta.userName!='?'?' od '+meta.userName:'';
+      lines.push('💾 Uložené: '+new Date(meta.savedAt).toLocaleString('sk-SK')+by2);
+    }
+    if(meta&&meta.source) lines.push('📡 Zdroj: '+meta.source);
+    var el=$('syncPopupContent');
+    if(el) el.innerHTML=lines.length?lines.join('<br>'):'Žiadne informácie';
+  }
+}
+function updateSyncFooter(){
+  var s=JSON.parse(localStorage.getItem('vydavky_sync')||'null');
+  if(!s) return;
+  var lbl=$('syncLabel'); if(lbl) lbl.textContent=_lastSyncLabel;
+  var lbl2=$('syncLabel2'); if(lbl2) lbl2.textContent=_lastSyncLabel;
 }
 function renderStorageMeta(){
-  var el=$('storageMeta');
-  if(!el) return;
+  var el=$('storageMeta'); if(!el) return;
   var meta=rootData&&rootData._meta?rootData._meta:null;
   var savedIso=meta?meta.savedAt:(rootData&&rootData._savedAt?rootData._savedAt:'');
   var who=meta&&meta.userName?meta.userName:'';
   var src=meta&&meta.source?meta.source:'';
-  var savedLine=savedIso
-    ? '💾 Uložené: '+fmtTs(savedIso,false)+(who?' — '+who:'')+(src?' ('+src+')':'')
-    : '';
-  var loadLine=loadedAt
-    ? '📥 Načítané: '+fmtRelative(loadedAt)+' ('+fmtTs(loadedAt,true)+')'
-    : '';
+  var s=JSON.parse(localStorage.getItem('vydavky_sync')||'null');
+  var loadLine=s&&s.iso?'📥 Načítané: '+formatTimeAgo(s.iso)+' ('+new Date(s.iso).toLocaleString('sk-SK')+')'  :'';
+  var savedLine=savedIso?'💾 Uložené: '+new Date(savedIso).toLocaleString('sk-SK')+(who?' — '+who:'')+(src?' ('+src+')':'')  :'';
   el.innerHTML=(loadLine?'<div>'+loadLine+'</div>':'')+
                (savedLine?'<div style="margin-top:3px;">'+savedLine+'</div>':'');
   el.style.display=(loadLine||savedLine)?'':'none';
 }
+function updateSavedAtLabel(){ updateSyncFooter(); renderStorageMeta(); }
 
 function setSyncStatus(state,label){
   const dot=$('syncDot'),lbl=$('syncLabel');
@@ -975,7 +996,7 @@ function selectUser(id){
   syncMobileUser();
   const m=mode();
   setSyncStatus(m==='ls'?'warn':'ok',m==='local'?'Lokálny server':m==='gdrive'?'Google Drive':m==='github'?'GitHub':'localStorage');
-  updateSavedAtLabel();
+  loadSyncRecord(); updateSyncFooter(); renderStorageMeta();
   showPage('dashboard');
 }
 function switchUser(){$('appMain').classList.remove('visible');$('userScreen').style.display='flex';renderUserScreen();}
