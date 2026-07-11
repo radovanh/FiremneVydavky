@@ -1148,11 +1148,13 @@ function openEditExpense(id){
   $('exp_date').value=e.date;
   $('exp_desc').value=e.desc||'';
   $('exp_amount').value=e.amount;
-  $('exp_vat').value=e.vat;
-  $('exp_topay').value=e.topay;
-  $('exp_vatrate').value=e.vatRate||'23';
   $('exp_divisor').value=e.divisor;
   $('exp_paid').value=e.paid?'1':'0';
+  // Set vatrate first (triggers recalcExpense via onchange), then
+  // immediately overwrite vat+topay with the stored values
+  $('exp_vatrate').value=e.vatRate||'23';
+  $('exp_vat').value=e.vat;
+  $('exp_topay').value=e.topay;
   populateTypeSelect();
   $('exp_type').value=e.typeId||'';
   openModal('expModal');
