@@ -1103,7 +1103,7 @@ function onTypeChange(){
 }
 function recalcExpense(){
   const amount=parseFloat($('exp_amount').value)||0;
-  const vatRate=parseFloat($('exp_vatrate').value)||23;
+  const vatRate=parseFloat($('exp_vatrate').value)||0;  // 0 is valid (0% VAT)
   const vatExact=vatRate>0 ? amount*(vatRate/100)/(1+vatRate/100) : 0;
   $('exp_vat').value=vatExact.toFixed(4);
   calcToPay();
@@ -1152,7 +1152,7 @@ function openEditExpense(id){
   $('exp_paid').value=e.paid?'1':'0';
   // Set vatrate first (triggers recalcExpense via onchange), then
   // immediately overwrite vat+topay with the stored values
-  $('exp_vatrate').value=e.vatRate||'23';
+  $('exp_vatrate').value=(e.vatRate!=null)?String(e.vatRate):'23';
   $('exp_vat').value=e.vat;
   $('exp_topay').value=e.topay;
   populateTypeSelect();
