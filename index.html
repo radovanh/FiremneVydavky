@@ -98,6 +98,7 @@ tbody td{padding:8px 11px;vertical-align:middle;}
 /* FORMS */
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin-bottom:13px;}
 .form-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:13px;margin-bottom:13px;}
+.form-row-4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:13px;margin-bottom:13px;}
 .form-row-1{display:grid;grid-template-columns:1fr;gap:13px;margin-bottom:13px;}
 .form-group{display:flex;flex-direction:column;gap:5px;}
 .form-group label{font-size:0.78rem;font-weight:600;color:var(--text2);}
@@ -202,7 +203,7 @@ tr.paid-row td:first-child{opacity:1;}
   .card-header{padding:10px 12px;}
   .card-body{padding:12px;}
   /* Forms: single column */
-  .form-row,.form-row-3{grid-template-columns:1fr!important;}
+  .form-row,.form-row-3,.form-row-4{grid-template-columns:1fr!important;}
   .form-group input,.form-group select{font-size:0.95rem;padding:10px 11px;}
   /* Modal: slide up from bottom */
   .modal-overlay{padding:0;align-items:flex-end;}
@@ -336,7 +337,7 @@ tr.paid-row td:first-child{opacity:1;}
                     <tr>
                       <th>Typ</th>
                       <th>Počet</th>
-                      <th>Plná suma</th>
+                      <th>Suma</th>
                       <th>K úhrade</th>
                       <th style="width:140px"></th>
                     </tr>
@@ -376,7 +377,7 @@ tr.paid-row td:first-child{opacity:1;}
                     <th>Dátum</th>
                     <th>Popis</th>
                     <th class="exp-col-typ">Typ</th>
-                    <th class="exp-col-full">Plná suma</th>
+                    <th class="exp-col-full">Suma</th>
                     <th class="exp-col-vat">DPH</th>
                     <th class="exp-col-div">Del.</th>
                     <th>K úhrade</th>
@@ -545,10 +546,15 @@ tr.paid-row td:first-child{opacity:1;}
           <input type="text" id="exp_desc" placeholder="napr. nafta, prezutie, monitor…">
         </div>
       </div>
-      <div class="form-row-3">
+      <div class="form-row-4">
         <div class="form-group">
-          <label>Plná suma (€) *</label>
+          <label>Suma (€) *</label>
           <input type="number" id="exp_amount" step="0.01" min="0" oninput="recalcExpense()" placeholder="0.00">
+        </div>
+        <div class="form-group">
+          <label>% uplatnenia</label>
+          <input type="number" id="exp_percent" step="1" min="0" max="100" value="100" oninput="recalcExpense()">
+          <span class="form-note" id="exp_effective_note"></span>
         </div>
         <div class="form-group">
           <label>DPH sadzba (%)</label>
@@ -1101,18 +1107,28 @@ function onTypeChange(){
     }
   }
 }
-function recalcExpense(){
+function getExpEffectiveAmount(){
   const amount=parseFloat($('exp_amount').value)||0;
+  let percent=parseFloat($('exp_percent').value);
+  if(isNaN(percent))percent=100;
+  if(percent<0)percent=0;
+  if(percent>100)percent=100;
+  return {amount:amount, percent:percent, effective:amount*(percent/100)};
+}
+function recalcExpense(){
+  const {effective,percent}=getExpEffectiveAmount();
+  const note=$('exp_effective_note');
+  if(note) note.textContent = percent!==100 ? ('Suma na uplatnenie: '+effective.toFixed(2)+' €') : '';
   const vatRate=parseFloat($('exp_vatrate').value)||0;  // 0 is valid (0% VAT)
-  const vatExact=vatRate>0 ? amount*(vatRate/100)/(1+vatRate/100) : 0;
+  const vatExact=vatRate>0 ? effective*(vatRate/100)/(1+vatRate/100) : 0;
   $('exp_vat').value=vatExact.toFixed(4);
   calcToPay();
 }
 function calcToPay(){
-  const amount=parseFloat($('exp_amount').value)||0;
+  const {effective}=getExpEffectiveAmount();
   const vat=parseFloat($('exp_vat').value)||0;
   const divisor=+$('exp_divisor').value;
-  const topay = divisor===0 ? amount : vat/divisor;
+  const topay = divisor===0 ? effective : vat/divisor;
   $('exp_topay').value=topay.toFixed(4);
 }
 
@@ -1132,6 +1148,8 @@ function openAddExpense(){
   $('exp_date').value=defaultDate;
   $('exp_desc').value='';
   $('exp_amount').value='';
+  $('exp_percent').value='100';
+  const addNote=$('exp_effective_note'); if(addNote) addNote.textContent='';
   $('exp_vat').value='';
   $('exp_topay').value='';
   $('exp_vatrate').value='23';
@@ -1147,7 +1165,12 @@ function openEditExpense(id){
   $('expModalTitle').textContent='Upraviť výdavok';
   $('exp_date').value=e.date;
   $('exp_desc').value=e.desc||'';
-  $('exp_amount').value=e.amount;
+  const rawAmount=(e.rawAmount!=null)?e.rawAmount:e.amount;
+  const editPercent=(e.percent!=null)?e.percent:100;
+  $('exp_amount').value=rawAmount;
+  $('exp_percent').value=editPercent;
+  const editNote=$('exp_effective_note');
+  if(editNote) editNote.textContent = editPercent!==100 ? ('Suma na uplatnenie: '+fmtEur2(e.amount)+' €') : '';
   $('exp_divisor').value=e.divisor;
   $('exp_paid').value=e.paid?'1':'0';
   // Set vatrate first (triggers recalcExpense via onchange), then
@@ -1161,7 +1184,12 @@ function openEditExpense(id){
 }
 function saveExpense(){
   const date=$('exp_date').value; if(!date){toast('Zadajte dátum','err');return;}
-  const amount=parseFloat($('exp_amount').value); if(!amount){toast('Zadajte sumu','err');return;}
+  const rawAmount=parseFloat($('exp_amount').value); if(!rawAmount){toast('Zadajte sumu','err');return;}
+  let percent=parseFloat($('exp_percent').value);
+  if(isNaN(percent))percent=100;
+  if(percent<0)percent=0;
+  if(percent>100)percent=100;
+  const amount=rawAmount*(percent/100);
   const vat=parseFloat($('exp_vat').value)||0;
   const topay=parseFloat($('exp_topay').value)||0;
   const divisor=+$('exp_divisor').value;
@@ -1173,9 +1201,9 @@ function saveExpense(){
   const db=udb();
   if(editExpId){
     const e=db.expenses.find(x=>x.id===editExpId);
-    if(e)Object.assign(e,{date,amount,vat,topay,divisor,typeId,desc:displayName,vatRate:+$('exp_vatrate').value,paid:$('exp_paid').value==='1'});
+    if(e)Object.assign(e,{date,amount,rawAmount,percent,vat,topay,divisor,typeId,desc:displayName,vatRate:+$('exp_vatrate').value,paid:$('exp_paid').value==='1'});
   } else {
-    db.expenses.push({id:nextId(db.expenses),date,amount,vat,topay,divisor,typeId,desc:displayName,vatRate:+$('exp_vatrate').value,paid:false,created:Date.now()});
+    db.expenses.push({id:nextId(db.expenses),date,amount,rawAmount,percent,vat,topay,divisor,typeId,desc:displayName,vatRate:+$('exp_vatrate').value,paid:false,created:Date.now()});
   }
   debouncedSave(); closeModal('expModal'); renderExpenses(); renderDashboard(); toast('Výdavok uložený','ok');
 }
@@ -1468,7 +1496,7 @@ function renderReport(){
   const paid=rows.filter(e=>e.paid).reduce((s,e)=>s+e.topay,0);
   const unpaid=rows.filter(e=>!e.paid).reduce((s,e)=>s+e.topay,0);
   $('reportBody').innerHTML=
-    '<div id="reportSummary" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;">'    +'<div style="background:var(--surface2);border-radius:8px;padding:12px 14px;border-left:4px solid var(--accent);">'    +'<div style="font-size:0.71rem;color:var(--text2);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;">Celkom</div>'    +'<div style="font-size:1.3rem;font-weight:700;">'+fmtEur2(total)+' €</div>'    +'<div style="font-size:0.71rem;color:var(--text3);">'+rows.length+' výdavkov</div></div>'    +'<div style="background:var(--surface2);border-radius:8px;padding:12px 14px;border-left:4px solid #6bcb77;">'    +'<div style="font-size:0.71rem;color:var(--text2);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;">Zaplatené</div>'    +'<div style="font-size:1.3rem;font-weight:700;color:var(--accent);">'+fmtEur2(paid)+' €</div>'    +'<div style="font-size:0.71rem;color:var(--text3);">'+rows.filter(e=>e.paid).length+' pol.</div></div>'    +'<div style="background:var(--surface2);border-radius:8px;padding:12px 14px;border-left:4px solid var(--warn);">'    +'<div style="font-size:0.71rem;color:var(--text2);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;">Nezaplatené</div>'    +'<div style="font-size:1.3rem;font-weight:700;color:var(--warn);">'+fmtEur2(unpaid)+' €</div>'    +'<div style="font-size:0.71rem;color:var(--text3);">'+rows.filter(e=>!e.paid).length+' pol.</div></div></div>'    +'<div class="table-wrap"><table>'    +'<thead><tr>'    +'<th>Dátum</th><th>Popis</th>'    +'<th class="rpt-col-hide">Typ</th>'    +'<th class="rpt-col-hide">Plná suma</th>'    +'<th class="rpt-col-hide">DPH</th>'    +'<th class="rpt-col-hide">Del.</th>'    +'<th>K úhrade</th><th>Stav</th>'    +'</tr></thead><tbody>'    +rows.map(e=>{      const typeName=e.typeId?getTypes().find(x=>x.id===e.typeId)?.name||'—':'—';      const divLabel=e.divisor===0?'plná':e.divisor===1?'1/1':e.divisor===2?'1/2':'1/4';      return '<tr>'        +'<td style="white-space:nowrap">'+fmtDate(e.date)+'</td>'        +'<td>'+e.desc+'</td>'        +'<td class="rpt-col-hide">'+typeName+'</td>'        +'<td class="rpt-col-hide">'+fmtEur2(e.amount)+' €</td>'        +'<td class="rpt-col-hide">'+fmtEur2(e.vat)+' €</td>'        +'<td class="rpt-col-hide" style="font-size:0.76rem;color:var(--text3);">'+divLabel+'</td>'        +'<td style="font-weight:600;white-space:nowrap">'+fmtEur2(e.topay)+' €</td>'        +'<td><span class="badge '+(e.paid?'badge-ok':'badge-warn')+'">'+(e.paid?'Zap.':'Nezap.')+'</span></td>'        +'</tr>';    }).join('')    +(rows.length?'<tr class="report-total"><td colspan="2" style="text-align:right;font-weight:700;">SPOLU</td><td class="rpt-col-hide"></td><td class="rpt-col-hide"></td><td class="rpt-col-hide"></td><td class="rpt-col-hide"></td><td style="font-weight:700;">'+fmtEur2(total)+' €</td><td></td></tr>':'<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:20px;">Žiadne výdavky</td></tr>')    +'</tbody></table></div>';
+    '<div id="reportSummary" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;">'    +'<div style="background:var(--surface2);border-radius:8px;padding:12px 14px;border-left:4px solid var(--accent);">'    +'<div style="font-size:0.71rem;color:var(--text2);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;">Celkom</div>'    +'<div style="font-size:1.3rem;font-weight:700;">'+fmtEur2(total)+' €</div>'    +'<div style="font-size:0.71rem;color:var(--text3);">'+rows.length+' výdavkov</div></div>'    +'<div style="background:var(--surface2);border-radius:8px;padding:12px 14px;border-left:4px solid #6bcb77;">'    +'<div style="font-size:0.71rem;color:var(--text2);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;">Zaplatené</div>'    +'<div style="font-size:1.3rem;font-weight:700;color:var(--accent);">'+fmtEur2(paid)+' €</div>'    +'<div style="font-size:0.71rem;color:var(--text3);">'+rows.filter(e=>e.paid).length+' pol.</div></div>'    +'<div style="background:var(--surface2);border-radius:8px;padding:12px 14px;border-left:4px solid var(--warn);">'    +'<div style="font-size:0.71rem;color:var(--text2);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;">Nezaplatené</div>'    +'<div style="font-size:1.3rem;font-weight:700;color:var(--warn);">'+fmtEur2(unpaid)+' €</div>'    +'<div style="font-size:0.71rem;color:var(--text3);">'+rows.filter(e=>!e.paid).length+' pol.</div></div></div>'    +'<div class="table-wrap"><table>'    +'<thead><tr>'    +'<th>Dátum</th><th>Popis</th>'    +'<th class="rpt-col-hide">Typ</th>'    +'<th class="rpt-col-hide">Suma</th>'    +'<th class="rpt-col-hide">DPH</th>'    +'<th class="rpt-col-hide">Del.</th>'    +'<th>K úhrade</th><th>Stav</th>'    +'</tr></thead><tbody>'    +rows.map(e=>{      const typeName=e.typeId?getTypes().find(x=>x.id===e.typeId)?.name||'—':'—';      const divLabel=e.divisor===0?'plná':e.divisor===1?'1/1':e.divisor===2?'1/2':'1/4';      return '<tr>'        +'<td style="white-space:nowrap">'+fmtDate(e.date)+'</td>'        +'<td>'+e.desc+'</td>'        +'<td class="rpt-col-hide">'+typeName+'</td>'        +'<td class="rpt-col-hide">'+fmtEur2(e.amount)+' €</td>'        +'<td class="rpt-col-hide">'+fmtEur2(e.vat)+' €</td>'        +'<td class="rpt-col-hide" style="font-size:0.76rem;color:var(--text3);">'+divLabel+'</td>'        +'<td style="font-weight:600;white-space:nowrap">'+fmtEur2(e.topay)+' €</td>'        +'<td><span class="badge '+(e.paid?'badge-ok':'badge-warn')+'">'+(e.paid?'Zap.':'Nezap.')+'</span></td>'        +'</tr>';    }).join('')    +(rows.length?'<tr class="report-total"><td colspan="2" style="text-align:right;font-weight:700;">SPOLU</td><td class="rpt-col-hide"></td><td class="rpt-col-hide"></td><td class="rpt-col-hide"></td><td class="rpt-col-hide"></td><td style="font-weight:700;">'+fmtEur2(total)+' €</td><td></td></tr>':'<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:20px;">Žiadne výdavky</td></tr>')    +'</tbody></table></div>';
 }
 
 // ── RENDER SETTINGS ───────────────────────────────────────────────────────────
